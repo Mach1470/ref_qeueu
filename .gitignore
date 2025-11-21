@@ -1,0 +1,50 @@
+# Flutter
+.dart_tool/
+.packages
+.pub/
+build/
+
+# iOS
+ios/Flutter/ephemeral/
+ios/Runner/GeneratedPluginRegistrant.*
+ios/Pods/
+ios/Podfile.lock
+
+# Android
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/google-services.json
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+
+# macOS
+macos/Flutter/ephemeral/
+macos/Pods/
+macos/Podfile.lock
+macos/Runner/GeneratedPluginRegistrant.swift
+
+# Windows
+windows/flutter/ephemeral/
+windows/flutter/generated_plugin_registrant.*
+windows/flutter/generated_plugins.cmake
+
+# Linux
+linux/flutter/ephemeral/
+linux/flutter/generated_plugin_registrant.*
+
+# Web
+web/.dart_tool/
+
+# Dart / Pub
+pubspec.lock
+*.log
+
+# JetBrains & VSCode
+.idea/
+.vscode/
+*.iml
+
+# System
+.DS_Store
+Thumbs.db
+
