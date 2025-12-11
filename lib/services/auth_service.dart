@@ -145,7 +145,54 @@ class AuthService {
       } catch (_) {}
     }
     // return null on success
+    // After creating the profile, also add the primary user to the join queue
+    try {
+      final actorKey = (email ?? phone).replaceAll('+', '').replaceAll(RegExp(r'[^0-9a-zA-Z]'), '_');
+      final profile = {
+        'individualNumber': individualNumber,
+        'phone': phone,
+        'email': prefs.getString(_keyUserEmail),
+        'role': 'refugee',
+        'name': prefs.getString('user_name') ?? individualNumber,
+      };
+      // Fire-and-forget; do not block signup flow on DB network
+      Future(() async {
+        try {
+          await DatabaseService.instance.addToJoinQueue(profile);
+        } catch (_) {}
+      });
+    } catch (_) {}
+
     return null;
+  }
+
+  // Family member helpers (stored locally under the owner's device)
+  Future<void> addFamilyMember(Map<String, dynamic> member) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'family_members';
+    final existing = prefs.getStringList(key) ?? <String>[];
+    existing.add(member.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value.toString())}')
+        .join('&'));
+    await prefs.setStringList(key, existing);
+  }
+
+  Future<List<Map<String, String>>> getFamilyMembers() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'family_members';
+    final existing = prefs.getStringList(key) ?? <String>[];
+    final out = <Map<String, String>>[];
+    for (final s in existing) {
+      final map = <String, String>{};
+      for (final part in s.split('&')) {
+        final kv = part.split('=');
+        if (kv.length == 2) {
+          map[kv[0]] = Uri.decodeComponent(kv[1]);
+        }
+      }
+      out.add(map);
+    }
+    return out;
   }
 
   // Save login state for refugee (phone login)

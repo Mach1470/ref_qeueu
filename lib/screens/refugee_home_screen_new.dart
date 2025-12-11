@@ -3,6 +3,9 @@ import 'package:ref_qeueu/widgets/safe_scaffold.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:ref_qeueu/services/auth_service.dart';
+import 'package:ref_qeueu/services/database_service.dart';
 
 class RefugeeHomeScreenNew extends StatefulWidget {
   const RefugeeHomeScreenNew({super.key});
@@ -34,6 +37,101 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
         _queuePosition = qp;
       });
     } catch (_) {}
+  }
+
+  Future<void> _showCreateIdDialog() async {
+    final nameCtrl = TextEditingController();
+    final ageCtrl = TextEditingController();
+    final genderCtrl = TextEditingController();
+    final dobCtrl = TextEditingController();
+    final auth = AuthService();
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Create ID for family member'),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Full name')),
+            TextField(controller: ageCtrl, decoration: const InputDecoration(labelText: 'Age'), keyboardType: TextInputType.number),
+            TextField(controller: genderCtrl, decoration: const InputDecoration(labelText: 'Gender')),
+            TextField(controller: dobCtrl, decoration: const InputDecoration(labelText: 'DOB (YYYY-MM)')),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              final member = {
+                'name': nameCtrl.text.trim(),
+                'age': ageCtrl.text.trim(),
+                'gender': genderCtrl.text.trim(),
+                'dob': dobCtrl.text.trim(),
+              };
+              await auth.addFamilyMember(member);
+              if (mounted) {
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Family member added')));
+                _loadFamilyMembers();
+              }
+            },
+            child: const Text('Register'),
+          )
+        ],
+      ),
+    );
+  }
+
+  List<Map<String, String>> _familyMembers = [];
+
+  Future<void> _loadFamilyMembers() async {
+    try {
+      final auth = AuthService();
+      final list = await auth.getFamilyMembers();
+      if (mounted) setState(() => _familyMembers = list);
+    } catch (_) {}
+  }
+
+  Future<void> _joinQueueFor(Map<String, String> member) async {
+    // Request location and push to joinQueue
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enable location services')));
+      return;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Location permission denied')));
+        return;
+      }
+    }
+    if (permission == LocationPermission.deniedForever) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Location permission permanently denied')));
+      return;
+    }
+
+    final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
+    final profile = {
+      'name': member['name'] ?? _userName ?? 'Unknown',
+      'age': member['age'] ?? '',
+      'gender': member['gender'] ?? '',
+      'dob': member['dob'] ?? '',
+      'owner': _userName ?? 'owner',
+    };
+    try {
+      final key = await DatabaseService.instance.addToJoinQueue(profile, lat: pos.latitude, lng: pos.longitude);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added to join queue (id: ${key ?? 'unknown'})')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not add to queue: $e')));
+    }
   }
 
   @override
@@ -134,7 +232,52 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
                                   icon: Icons.queue,
                                   color: const Color(0xFFFFE0B2),
                                   iconColor: const Color(0xFFE65100),
-                                  onTap: () {}),
+                                  onTap: () async {
+                                    // If no family members exist, add primary user as a virtual member
+                                    await _loadFamilyMembers();
+                                    if (_familyMembers.isEmpty) {
+                                      // create a primary member from stored profile
+                                      final prefs = await SharedPreferences.getInstance();
+                                      final name = prefs.getString('user_name') ?? _userName ?? 'You';
+                                      final primary = {'name': name, 'age': '', 'gender': '', 'dob': ''};
+                                      await _joinQueueFor(primary);
+                                    } else if (_familyMembers.length == 1) {
+                                      // show the single card with join
+                                      await _joinQueueFor(_familyMembers.first);
+                                    } else {
+                                      // multiple members: show selection dialog
+                                      showDialog(
+                                          context: context,
+                                          builder: (ctx) {
+                                            return AlertDialog(
+                                              title: const Text('Select family member to join'),
+                                              content: SizedBox(
+                                                width: double.maxFinite,
+                                                child: ListView.separated(
+                                                  shrinkWrap: true,
+                                                  itemBuilder: (_, idx) {
+                                                    final m = _familyMembers[idx];
+                                                    return ListTile(
+                                                      title: Text(m['name'] ?? 'Unnamed'),
+                                                      subtitle: Text('Age: ${m['age'] ?? '-'}'),
+                                                      trailing: ElevatedButton(
+                                                        onPressed: () async {
+                                                          Navigator.of(ctx).pop();
+                                                          await _joinQueueFor(m);
+                                                        },
+                                                        child: const Text('Join'),
+                                                      ),
+                                                    );
+                                                  },
+                                                  separatorBuilder: (_, __) => const Divider(),
+                                                  itemCount: _familyMembers.length,
+                                                ),
+                                              ),
+                                              actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close'))],
+                                            );
+                                          });
+                                    }
+                                  }),
                               _DashboardCard(
                                   title: 'My ID Card',
                                   subtitle: 'Show to doctor',
@@ -159,6 +302,24 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
                             ],
                           ),
                           const SizedBox(height: 80),
+                          // Small row of quick actions: Create ID
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: _showCreateIdDialog,
+                                  child: const Text('Create ID'),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: _loadFamilyMembers,
+                                  child: const Text('Refresh Members'),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
