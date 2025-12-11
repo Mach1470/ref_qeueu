@@ -278,13 +278,13 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
                                           });
                                     }
                                   }),
-                              _DashboardCard(
-                                  title: 'My ID Card',
-                                  subtitle: 'Show to doctor',
+                                _DashboardCard(
+                                  title: 'Create My ID',
+                                  subtitle: 'Register family members',
                                   icon: Icons.badge_outlined,
                                   color: const Color(0xFFE1BEE7),
                                   iconColor: const Color(0xFF4A148C),
-                                  onTap: () => _openSubScreen('id_card')),
+                                  onTap: () => _showCreateIdDialog()),
                               _DashboardCard(
                                   title: 'Medical History',
                                   subtitle: 'Past records & visits',
