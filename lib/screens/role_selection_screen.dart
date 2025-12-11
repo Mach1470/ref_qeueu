@@ -74,9 +74,12 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
       floatingActionButton: kDebugMode
           ? FloatingActionButton.extended(
               onPressed: () async {
-                // Set a demo refugee login state and navigate to the refugee home
+                // Set a demo refugee login state (debug-only) and navigate
                 try {
-                  await AuthService().saveRefugeeLogin('+000000000');
+                  await AuthService().saveRefugeeLogin('+000000000',
+                      displayName: 'Stephen Demo',
+                      demoId: 'demo-000',
+                      queuePosition: 5);
                 } catch (_) {}
                 if (context.mounted) {
                   Navigator.pushNamed(context, '/refugee_home');
