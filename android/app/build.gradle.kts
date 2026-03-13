@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "com.example.ref_qeueu"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -28,8 +28,8 @@ android {
         applicationId = "com.example.ref_qeueu"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion // Updated for support
-        targetSdk = flutter.targetSdkVersion
+        minSdk = flutter.minSdkVersion // Minimum for many modern features
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
