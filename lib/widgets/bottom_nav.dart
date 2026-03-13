@@ -22,7 +22,7 @@ class CustomBottomNav extends StatelessWidget {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withAlpha((0.1 * 255).round()),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -54,7 +54,9 @@ class CustomBottomNav extends StatelessWidget {
                       children: [
                         Icon(
                           isSelected ? item.selectedIcon : item.icon,
-                          color: isSelected ? Colors.teal : Colors.grey,
+                          color: isSelected
+                              ? const Color(0xFF386BB8)
+                              : Colors.grey,
                           size: 24,
                         ),
                         const SizedBox(height: 4),
@@ -62,8 +64,12 @@ class CustomBottomNav extends StatelessWidget {
                           item.label,
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                            color: isSelected ? Colors.teal : Colors.grey,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                            color: isSelected
+                                ? const Color(0xFF386BB8)
+                                : Colors.grey,
                           ),
                         ),
                       ],

@@ -1,5 +1,7 @@
 # Changes Summary - My Queue App
 
+> **SCOPE NOTE**: The My Queue architecture has been split. This mobile application is now strictly focused on **Refugees** and **Ambulances**. Professional roles (Doctors, Pharmacy, Lab) will be housed in a separate Web Application project.
+
 ## ✅ Completed Changes
 
 ### 1. App Renaming
@@ -78,21 +80,13 @@
 
 3. **Integrate Bottom Nav**:
    - Add to screens that need navigation
-   - Example:
-   ```dart
-   bottomNavigationBar: CustomBottomNav(
-     currentIndex: _currentIndex,
-     onTap: (index) => setState(() => _currentIndex = index),
-     items: [
-       BottomNavItem(icon: Icons.home, selectedIcon: Icons.home, label: "Home"),
-       // ... more items
-     ],
-   ),
-   ```
 
-4. **Start Firestore Integration**:
-   - Follow the `FIRESTORE_INTEGRATION_PLAN.md` document
-   - Start with Phase 1: Setup & Initialization
+4. **Start Refugee Queue Submission Feature**:
+   - Build the symptom input and hospital selection flow
+   - Integrate with location services
+
+5. **Start Firestore Integration**:
+   - Follow the `FIRESTORE_INTEGRATION_PLAN.md` document for Refugee and Ambulance syncing.
 
 ---
 

@@ -1,5 +1,7 @@
 # Firestore Integration Plan - My Queue App
 
+> **SCOPE NOTE**: The My Queue architecture has been split. This mobile app focuses on **Refugees** and **Ambulances**. The Firestore plan below contains the complete system architecture (including Doctors, Pharmacy, Lab), but the mobile client should only implement the services necessary for Refugees and Ambulances.
+
 ## 🎯 Overview
 
 This document provides a comprehensive, step-by-step plan to integrate Firestore into the My Queue app, making it fully functional with real-time data synchronization.

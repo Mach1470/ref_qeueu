@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:ref_qeueu/widgets/safe_scaffold.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SafeScaffold(
       backgroundColor: Colors.white,
       body: Center(
         child: Column(

@@ -1,0 +1,168 @@
+Launching lib/main.dart on sdk gphone64 arm64 in debug mode...
+Running Gradle task 'assembleDebug'...                             22.0s
+✓ Built build/app/outputs/flutter-apk/app-debug.apk
+Installing build/app/outputs/flutter-apk/app-debug.apk...        2,224ms
+D/FlutterJNI(31448): Beginning load of flutter...
+D/FlutterJNI(31448): flutter (null) was loaded normally!
+I/flutter (31448): [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(104)] Using the Impeller rendering backend (OpenGLES).
+D/FlutterGeolocator(31448): Attaching Geolocator to activity
+D/FlutterGeolocator(31448): Creating service.
+D/FlutterGeolocator(31448): Binding to location service.
+Syncing files to device sdk gphone64 arm64...                      173ms
+
+Flutter run key commands.
+r Hot reload. 🔥🔥🔥
+R Hot restart.
+h List all available interactive commands.
+d Detach (terminate "flutter run" but leave application running).
+c Clear the screen
+q Quit (terminate the application on the device).
+
+A Dart VM Service on sdk gphone64 arm64 is available at: http://127.0.0.1:54732/JGTHZhOB3SA=/
+The Flutter DevTools debugger and profiler on sdk gphone64 arm64 is available at: http://127.0.0.1:54732/JGTHZhOB3SA=/devtools/?uri=ws://127.0.0.1:54732/JGTHZhOB3SA=/ws
+D/FlutterGeolocator(31448): Geolocator foreground service connected
+D/FlutterGeolocator(31448): Initializing Geolocator services
+D/FlutterGeolocator(31448): Flutter engine connected. Connected engine count 1
+I/Choreographer(31448): Skipped 41 frames!  The application may be doing too much work on its main thread.
+D/WindowLayoutComponentImpl(31448): Register WindowLayoutInfoListener on Context=com.example.ref_qeueu.MainActivity@3d5b84f, of which baseContext=android.app.ContextImpl@18b1b9d
+I/Choreographer(31448): Skipped 60 frames!  The application may be doing too much work on its main thread.
+D/ProfileInstaller(31448): Installing profile for com.example.ref_qeueu
+I/Choreographer(31448): Skipped 40 frames!  The application may be doing too much work on its main thread.
+I/HWUI    (31448): Davey! duration=724ms; Flags=1, FrameTimelineVsyncId=8267861, IntendedVsync=68693454159224, Vsync=68694120825864, InputEventId=0, HandleInputStart=68694127694556, AnimationStart=68694127696014, PerformTraversalsStart=68694127696764, DrawStart=68694149689097, FrameDeadline=68693470825890, FrameStartTime=68694126941264, FrameInterval=16666666, WorkloadTarget=16666666, SyncQueued=68694151637764, SyncStart=68694151948056, IssueDrawCommandsStart=68694152304806, SwapBuffers=68694165796056, FrameCompleted=68694178871597, DequeueBufferDuration=2389541, QueueBufferDuration=507583, GpuCompleted=68694176449389, SwapBuffersCompleted=68694178871597, DisplayPresentTime=-5476376652692044944, CommandSubmissionCompleted=68694165796056, 
+W/WindowOnBackDispatcher(31448): sendCancelIfRunning: isInProgress=false callback=io.flutter.embedding.android.FlutterActivity$1@35172d4
+I/Choreographer(31448): Skipped 30 frames!  The application may be doing too much work on its main thread.
+D/InsetsController(31448): hide(ime(), fromIme=false)
+I/ImeTracker(31448): com.example.ref_qeueu:c6fd863c: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+W/ample.ref_qeueu(31448): Suspending all threads took: 8.634ms
+I/ample.ref_qeueu(31448): Background concurrent mark compact GC freed 4564KB AllocSpace bytes, 14(580KB) LOS objects, 49% free, 3952KB/7905KB, paused 11.105ms,4.608ms total 962.404ms
+I/ample.ref_qeueu(31448): Compiler allocated 5111KB to compile void android.view.ViewRootImpl.performTraversals()
+W/WindowOnBackDispatcher(31448): sendCancelIfRunning: isInProgress=false callback=io.flutter.embedding.android.FlutterActivity$1@35172d4
+I/ample.ref_qeueu(31448): AssetManager2(0xb4000073a00c0db8) locale list changing from [] to [en-US]
+W/WindowOnBackDispatcher(31448): sendCancelIfRunning: isInProgress=false callback=io.flutter.embedding.android.FlutterActivity$1@35172d4
+W/DynamiteModule(31448): Local module descriptor class for com.google.android.gms.providerinstaller.dynamite not found.
+I/DynamiteModule(31448): Considering local module com.google.android.gms.providerinstaller.dynamite:0 and remote module com.google.android.gms.providerinstaller.dynamite:0
+W/ProviderInstaller(31448): Failed to load providerinstaller module: No acceptable module com.google.android.gms.providerinstaller.dynamite found. Local version is 0 and remote version is 0.
+D/ApplicationLoaders(31448): Returning zygote-cached class loader: /system/framework/org.apache.http.legacy.jar
+D/ApplicationLoaders(31448): Returning zygote-cached class loader: /system/framework/com.android.media.remotedisplay.jar
+D/ApplicationLoaders(31448): Returning zygote-cached class loader: /system/framework/com.android.location.provider.jar
+D/ApplicationLoaders(31448): Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
+D/ApplicationLoaders(31448): Returning zygote-cached class loader: /system_ext/framework/androidx.window.sidecar.jar
+W/ample.ref_qeueu(31448): Loading /data/app/~~-857ckbPYc3g0Ko8EvWgOA==/com.google.android.gms-agxaiRnOZjLTGSb8Zqnp5w==/oat/arm64/base.odex non-executable as it requires an image which we failed to load
+D/nativeloader(31448): Configuring clns-10 for other apk /data/app/~~-857ckbPYc3g0Ko8EvWgOA==/com.google.android.gms-agxaiRnOZjLTGSb8Zqnp5w==/base.apk. target_sdk_version=36, uses_libraries=, library_path=/data/app/~~-857ckbPYc3g0Ko8EvWgOA==/com.google.android.gms-agxaiRnOZjLTGSb8Zqnp5w==/lib/arm64:/data/app/~~-857ckbPYc3g0Ko8EvWgOA==/com.google.android.gms-agxaiRnOZjLTGSb8Zqnp5w==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.gms
+I/ample.ref_qeueu(31448): AssetManager2(0xb4000073a00d3058) locale list changing from [] to [en-US]
+I/ample.ref_qeueu(31448): hiddenapi: Accessing hidden method Ldalvik/system/VMStack;->getStackClass2()Ljava/lang/Class; (runtime_flags=0, domain=core-platform, api=unsupported) from Lgmvr; (domain=app) using reflection: allowed
+E/GoogleApiManager(31448): Failed to get service from broker. 
+E/GoogleApiManager(31448): java.lang.SecurityException: Unknown calling package name 'com.google.android.gms'.
+E/GoogleApiManager(31448): 	at android.os.Parcel.createExceptionOrNull(Parcel.java:3340)
+E/GoogleApiManager(31448): 	at android.os.Parcel.createException(Parcel.java:3324)
+E/GoogleApiManager(31448): 	at android.os.Parcel.readException(Parcel.java:3307)
+E/GoogleApiManager(31448): 	at android.os.Parcel.readException(Parcel.java:3249)
+E/GoogleApiManager(31448): 	at bckw.a(:com.google.android.gms@254730035@25.47.30 (260400-833691957):36)
+E/GoogleApiManager(31448): 	at bcix.z(:com.google.android.gms@254730035@25.47.30 (260400-833691957):143)
+E/GoogleApiManager(31448): 	at bbpa.run(:com.google.android.gms@254730035@25.47.30 (260400-833691957):42)
+E/GoogleApiManager(31448): 	at android.os.Handler.handleCallback(Handler.java:995)
+E/GoogleApiManager(31448): 	at android.os.Handler.dispatchMessage(Handler.java:103)
+E/GoogleApiManager(31448): 	at cpny.ms(:com.google.android.gms@254730035@25.47.30 (260400-833691957):1)
+E/GoogleApiManager(31448): 	at cpny.dispatchMessage(:com.google.android.gms@254730035@25.47.30 (260400-833691957):5)
+E/GoogleApiManager(31448): 	at android.os.Looper.loopOnce(Looper.java:248)
+E/GoogleApiManager(31448): 	at android.os.Looper.loop(Looper.java:338)
+E/GoogleApiManager(31448): 	at android.os.HandlerThread.run(HandlerThread.java:85)
+W/GoogleApiManager(31448): Not showing notification since connectionResult is not user-facing: ConnectionResult{statusCode=DEVELOPER_ERROR, resolution=null, message=null, clientMethodKey=null}
+W/FlagRegistrar(31448): Failed to register com.google.android.gms.providerinstaller#com.example.ref_qeueu
+W/FlagRegistrar(31448): furu: 17: 17: API: Phenotype.API is not available on this device. Connection failed with: ConnectionResult{statusCode=DEVELOPER_ERROR, resolution=null, message=null, clientMethodKey=null}
+W/FlagRegistrar(31448): 	at furw.a(:com.google.android.gms@254730035@25.47.30 (260400-833691957):13)
+W/FlagRegistrar(31448): 	at gscu.d(:com.google.android.gms@254730035@25.47.30 (260400-833691957):3)
+W/FlagRegistrar(31448): 	at gscw.run(:com.google.android.gms@254730035@25.47.30 (260400-833691957):130)
+W/FlagRegistrar(31448): 	at gsfd.execute(:com.google.android.gms@254730035@25.47.30 (260400-833691957):1)
+W/FlagRegistrar(31448): 	at gsde.f(:com.google.android.gms@254730035@25.47.30 (260400-833691957):1)
+W/FlagRegistrar(31448): 	at gsde.m(:com.google.android.gms@254730035@25.47.30 (260400-833691957):99)
+W/FlagRegistrar(31448): 	at gsde.r(:com.google.android.gms@254730035@25.47.30 (260400-833691957):17)
+W/FlagRegistrar(31448): 	at fnjx.hz(:com.google.android.gms@254730035@25.47.30 (260400-833691957):35)
+W/FlagRegistrar(31448): 	at fayj.run(:com.google.android.gms@254730035@25.47.30 (260400-833691957):12)
+W/FlagRegistrar(31448): 	at gsfd.execute(:com.google.android.gms@254730035@25.47.30 (260400-833691957):1)
+W/FlagRegistrar(31448): 	at fayk.b(:com.google.android.gms@254730035@25.47.30 (260400-833691957):18)
+W/FlagRegistrar(31448): 	at fayz.b(:com.google.android.gms@254730035@25.47.30 (260400-833691957):36)
+W/FlagRegistrar(31448): 	at fazb.d(:com.google.android.gms@254730035@25.47.30 (260400-833691957):25)
+W/FlagRegistrar(31448): 	at bbmj.c(:com.google.android.gms@254730035@25.47.30 (260400-833691957):9)
+W/FlagRegistrar(31448): 	at bboy.q(:com.google.android.gms@254730035@25.47.30 (260400-833691957):48)
+W/FlagRegistrar(31448): 	at bboy.d(:com.google.android.gms@254730035@25.47.30 (260400-833691957):10)
+W/FlagRegistrar(31448): 	at bboy.g(:com.google.android.gms@254730035@25.47.30 (260400-833691957):185)
+W/FlagRegistrar(31448): 	at bboy.onConnectionFailed(:com.google.android.gms@254730035@25.47.30 (260400-833691957):2)
+W/FlagRegistrar(31448): 	at bbpa.run(:com.google.android.gms@254730035@25.47.30 (260400-833691957):70)
+W/FlagRegistrar(31448): 	at android.os.Handler.handleCallback(Handler.java:995)
+W/FlagRegistrar(31448): 	at android.os.Handler.dispatchMessage(Handler.java:103)
+W/FlagRegistrar(31448): 	at cpny.ms(:com.google.android.gms@254730035@25.47.30 (260400-833691957):1)
+W/FlagRegistrar(31448): 	at cpny.dispatchMessage(:com.google.android.gms@254730035@25.47.30 (260400-833691957):5)
+W/FlagRegistrar(31448): 	at android.os.Looper.loopOnce(Looper.java:248)
+W/FlagRegistrar(31448): 	at android.os.Looper.loop(Looper.java:338)
+W/FlagRegistrar(31448): 	at android.os.HandlerThread.run(HandlerThread.java:85)
+W/FlagRegistrar(31448): Caused by: bbkq: 17: API: Phenotype.API is not available on this device. Connection failed with: ConnectionResult{statusCode=DEVELOPER_ERROR, resolution=null, message=null, clientMethodKey=null}
+W/FlagRegistrar(31448): 	at bcij.a(:com.google.android.gms@254730035@25.47.30 (260400-833691957):15)
+W/FlagRegistrar(31448): 	at bbmm.a(:com.google.android.gms@254730035@25.47.30 (260400-833691957):1)
+W/FlagRegistrar(31448): 	at bbmj.c(:com.google.android.gms@254730035@25.47.30 (260400-833691957):5)
+W/FlagRegistrar(31448): 	... 12 more
+I/furi    (31448): Unable to retrieve flag snapshot for com.google.android.gms.providerinstaller#com.example.ref_qeueu, using defaults.
+D/nativeloader(31448): Load /data/app/~~-857ckbPYc3g0Ko8EvWgOA==/com.google.android.gms-agxaiRnOZjLTGSb8Zqnp5w==/base.apk!/lib/arm64-v8a/libconscrypt_gmscore_jni.so using class loader ns clns-10 (caller=/data/app/~~-857ckbPYc3g0Ko8EvWgOA==/com.google.android.gms-agxaiRnOZjLTGSb8Zqnp5w==/base.apk): ok
+V/NativeCrypto(31448): Registering com/google/android/gms/org/conscrypt/NativeCrypto's 329 native methods...
+I/ample.ref_qeueu(31448): hiddenapi: Accessing hidden method Ljava/security/spec/ECParameterSpec;->getCurveName()Ljava/lang/String; (runtime_flags=0, domain=core-platform, api=unsupported) from Lcom/google/android/gms/org/conscrypt/Platform; (domain=app) using reflection: allowed
+I/ProviderInstaller(31448): Installed default security provider GmsCore_OpenSSL
+I/ample.ref_qeueu(31448): hiddenapi: Accessing hidden field Ljava/net/Socket;->impl:Ljava/net/SocketImpl; (runtime_flags=0, domain=core-platform, api=unsupported) from Lcom/google/android/gms/org/conscrypt/Platform; (domain=app) using reflection: allowed
+I/ample.ref_qeueu(31448): hiddenapi: Accessing hidden method Ljava/security/spec/ECParameterSpec;->setCurveName(Ljava/lang/String;)V (runtime_flags=0, domain=core-platform, api=unsupported) from Lcom/google/android/gms/org/conscrypt/Platform; (domain=app) using reflection: allowed
+W/Firestore(31448): (26.0.2) [WriteStream]: (60a7ae3) Stream closed with status: Status{code=PERMISSION_DENIED, description=Cloud Firestore API has not been used in project refugee-queue before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=refugee-queue then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry., cause=null}.
+W/Firestore(31448): (26.0.2) [WriteStream]: (60a7ae3) Stream closed with status: Status{code=PERMISSION_DENIED, description=Cloud Firestore API has not been used in project refugee-queue before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=refugee-queue then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry., cause=null}.
+W/Firestore(31448): (26.0.2) [WriteStream]: (60a7ae3) Stream closed with status: Status{code=PERMISSION_DENIED, description=Cloud Firestore API has not been used in project refugee-queue before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=refugee-queue then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry., cause=null}.
+W/Firestore(31448): (26.0.2) [WriteStream]: (60a7ae3) Stream closed with status: Status{code=PERMISSION_DENIED, description=Cloud Firestore API has not been used in project refugee-queue before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=refugee-queue then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry., cause=null}.
+W/Firestore(31448): (26.0.2) [WriteStream]: (60a7ae3) Stream closed with status: Status{code=PERMISSION_DENIED, description=Cloud Firestore API has not been used in project refugee-queue before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=refugee-queue then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry., cause=null}.
+W/Firestore(31448): (26.0.2) [WriteStream]: (60a7ae3) Stream closed with status: Status{code=PERMISSION_DENIED, description=Cloud Firestore API has not been used in project refugee-queue before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=refugee-queue then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry., cause=null}.
+E/GoogleApiManager(31448): Failed to get service from broker. 
+E/GoogleApiManager(31448): java.lang.SecurityException: Unknown calling package name 'com.google.android.gms'.
+E/GoogleApiManager(31448): 	at android.os.Parcel.createExceptionOrNull(Parcel.java:3340)
+E/GoogleApiManager(31448): 	at android.os.Parcel.createException(Parcel.java:3324)
+E/GoogleApiManager(31448): 	at android.os.Parcel.readException(Parcel.java:3307)
+E/GoogleApiManager(31448): 	at android.os.Parcel.readException(Parcel.java:3249)
+E/GoogleApiManager(31448): 	at bckw.a(:com.google.android.gms@254730035@25.47.30 (260400-833691957):36)
+E/GoogleApiManager(31448): 	at bcix.z(:com.google.android.gms@254730035@25.47.30 (260400-833691957):143)
+E/GoogleApiManager(31448): 	at bbpa.run(:com.google.android.gms@254730035@25.47.30 (260400-833691957):42)
+E/GoogleApiManager(31448): 	at android.os.Handler.handleCallback(Handler.java:995)
+E/GoogleApiManager(31448): 	at android.os.Handler.dispatchMessage(Handler.java:103)
+E/GoogleApiManager(31448): 	at cpny.ms(:com.google.android.gms@254730035@25.47.30 (260400-833691957):1)
+E/GoogleApiManager(31448): 	at cpny.dispatchMessage(:com.google.android.gms@254730035@25.47.30 (260400-833691957):5)
+E/GoogleApiManager(31448): 	at android.os.Looper.loopOnce(Looper.java:248)
+E/GoogleApiManager(31448): 	at android.os.Looper.loop(Looper.java:338)
+E/GoogleApiManager(31448): 	at android.os.HandlerThread.run(HandlerThread.java:85)
+W/GoogleApiManager(31448): Not showing notification since connectionResult is not user-facing: ConnectionResult{statusCode=DEVELOPER_ERROR, resolution=null, message=null, clientMethodKey=null}
+W/RepoOperation(31448): setValue at /events/-OnWvbRaP_4t5Zk8fUkS failed: DatabaseError: Permission denied
+W/Firestore(31448): (26.0.2) [WriteStream]: (60a7ae3) Stream closed with status: Status{code=PERMISSION_DENIED, description=Cloud Firestore API has not been used in project refugee-queue before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=refugee-queue then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry., cause=null}.
+D/FirebaseDatabase(31448): 🔍 Kotlin: Setting up query observe for path=userActivity/000000000/sessions
+W/SyncTree(31448): Listen at /userActivity/000000000/sessions failed: DatabaseError: Permission denied
+I/flutter (31448): Initializing location...
+I/flutter (31448): Initial permission: LocationPermission.denied
+W/Firestore(31448): (26.0.2) [WriteStream]: (60a7ae3) Stream closed with status: Status{code=PERMISSION_DENIED, description=Cloud Firestore API has not been used in project refugee-queue before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=refugee-queue then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry., cause=null}.
+I/flutter (31448): Permission after request: LocationPermission.whileInUse
+D/InsetsController(31448): hide(ime(), fromIme=false)
+I/ImeTracker(31448): com.example.ref_qeueu:6b639d9c: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+I/flutter (31448): Current position: 37.4219983, -122.084
+I/flutter (31448): Slide End: 0.0
+I/flutter (31448): Slide Value: 0.052164092318702275
+I/flutter (31448): Slide Value: 0.11195928753180659
+I/flutter (31448): Slide Value: 0.22773536895674296
+I/flutter (31448): Slide Value: 0.47199278387404575
+I/flutter (31448): Slide Value: 0.7913088422391857
+I/flutter (31448): Slide Value: 1.0
+I/flutter (31448): Slide Value: 1.0
+I/flutter (31448): Slide End: 1.0
+I/flutter (31448): Attempting to request ambulance...
+W/Firestore(31448): (26.0.2) [WriteStream]: (60a7ae3) Stream closed with status: Status{code=PERMISSION_DENIED, description=Cloud Firestore API has not been used in project refugee-queue before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=refugee-queue then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry., cause=null}.
+D/FirebaseDatabase(31448): 🔍 Kotlin: Setting up query observe for path=emergency_requests/-OnWvhsKTA_qAmZyEm8h
+W/Firestore(31448): (26.0.2) [WriteStream]: (60a7ae3) Stream closed with status: Status{code=PERMISSION_DENIED, description=Cloud Firestore API has not been used in project refugee-queue before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=refugee-queue then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry., cause=null}.
+W/Firestore(31448): (26.0.2) [WriteStream]: (60a7ae3) Stream closed with status: Status{code=PERMISSION_DENIED, description=Cloud Firestore API has not been used in project refugee-queue before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=refugee-queue then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry., cause=null}.
+W/Firestore(31448): (26.0.2) [WriteStream]: (60a7ae3) Stream closed with status: Status{code=PERMISSION_DENIED, description=Cloud Firestore API has not been used in project refugee-queue before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=refugee-queue then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry., cause=null}.
+W/Firestore(31448): (26.0.2) [WriteStream]: (60a7ae3) Stream closed with status: Status{code=PERMISSION_DENIED, description=Cloud Firestore API has not been used in project refugee-queue before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=refugee-queue then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry., cause=null}.
+W/Firestore(31448): (26.0.2) [WriteStream]: (60a7ae3) Stream closed with status: Status{code=PERMISSION_DENIED, description=Cloud Firestore API has not been used in project refugee-queue before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=refugee-queue then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry., cause=null}.
+
+Performing hot reload...                                        
+Reloaded 1 of 1900 libraries in 1,098ms (compile: 112 ms, reload: 547 ms, reassemble: 274 ms).
+W/Firestore(31448): (26.0.2) [WriteStream]: (60a7ae3) Stream closed with status: Status{code=PERMISSION_DENIED, description=Cloud Firestore API has not been used in project refugee-queue before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=refugee-queue then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry., cause=null}.
+W/RepoOperation(31448): setValue at /events/-OnWwluPcpQsZX6KVLnS failed: DatabaseError: Permission denied
+W/RepoOperation(31448): setValue at /events/-OnWwn-597IdwO6o7S66 failed: DatabaseError: Permission denied
+W/Firestore(31448): (26.0.2) [WriteStream]: (60a7ae3) Stream closed with status: Status{code=PERMISSION_DENIED, description=Cloud Firestore API has not been used in project refugee-queue before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=refugee-queue then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry., cause=null}.

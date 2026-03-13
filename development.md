@@ -20,16 +20,15 @@
 Refugees spend hours in physical queues, unsure when they'll be served. This app provides:
 - Virtual queue management
 - Real-time status updates
-- Multi-role dashboards (Refugee, Doctor, Pharmacy, Lab, Ambulance)
 - Location-based hospital assignment
-- Prescription and lab result management
 
-### Target Users
+*(Note: The professional dashboards for Doctors, Pharmacy, and Lab technicians are housed in a separate Web Application project).*
+
+### Target Users (Mobile Scope)
 1. **Refugees** - Submit symptoms, join queues, track status
-2. **Doctors** - View queues, diagnose, prescribe, refer
-3. **Pharmacy** - View prescriptions, issue medicine
-4. **Lab Technicians** - Receive test requests, upload results
-5. **Ambulance Services** - Handle emergency requests with live tracking
+2. **Ambulance Services** - Handle emergency requests with live tracking
+
+*(Note: Doctors, Pharmacy, and Lab Technicians will use the Web interface).*
 
 ---
 
@@ -778,21 +777,14 @@ try {
 2. **Unify Patient models** - Create single model for all roles
 3. **Complete refugee queue submission** - Core feature for refugees
 
-### SHORT TERM (Next 2 Weeks):
-1. **Complete doctor prescription flow** - Diagnosis, prescription, lab requests
-2. **Implement lab module** - Test requests, result uploads
-3. **Start Firestore integration** - Begin with queue and patient collections
-
 ### MEDIUM TERM (Next Month):
-1. **Complete Firestore integration** - All collections and real-time listeners
+1. **Complete Firestore integration** - Queue collections and real-time listeners
 2. **Implement ambulance tracking** - Real-time location updates
-3. **Add notifications** - Push notifications for queue updates
 
-### LONG TERM (Future):
-1. Enhanced features (analytics, reporting)
-2. Multi-language support (English, Arabic, Swahili)
-3. Offline support with Firestore persistence
-4. Admin dashboard for hospital management
+---
+
+## 🎯 SCOPE NOTE
+*The sections below regarding Doctor, Pharmacy, and Lab modules remain for architectural context but are to be implemented in the respective Web Application.*
 
 ---
 

@@ -1,205 +1,155 @@
 import 'package:flutter/material.dart';
-// Firebase imports (Added since firebase_options.dart exists in your tree)
+import 'package:provider/provider.dart';
+import 'services/theme_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
-import 'services/auth_service.dart';
-
-// --- SCREEN IMPORTS (Based on your tree) ---
-
-// Core
+// Core Screens
 import 'screens/onboarding_screen.dart';
 import 'screens/role_selection_screen.dart';
-import 'screens/welccome_screen.dart'; // Note: typo in your file name 'welccome'
-import 'screens/home_screen.dart';
-import 'screens/map_screen.dart';
+import 'screens/splash_screen.dart';
 
-// Auth
-import 'screens/auth/refugee_login_screen.dart';
+// Auth Screens
+import 'screens/auth/refugee_login_screen_new.dart';
 import 'screens/auth/refugee_signup_screen.dart';
 import 'screens/auth/otp_verification_screen.dart';
 
-// Role Homes
-import 'screens/refugee_home_screen.dart';
-import 'screens/doctor_home_screen.dart';
-import 'screens/lab_home_screen.dart';
-import 'screens/ambulance_request_screen.dart';
+// Dashboard Screens
+import 'screens/refugee_home_screen_new.dart';
+import 'screens/join_queue_selection_screen.dart';
+import 'screens/add_family_member_screen.dart';
+import 'screens/refugee/family_registration_screen.dart';
+import 'screens/refugee/join_queue_dashboard.dart';
+import 'screens/refugee/auth_lock_screen.dart';
+import 'screens/refugee/account_selector_screen.dart';
 
-// Pharmacy
-import 'screens/pharmacy/pharmacy_login_screen.dart';
-import 'screens/pharmacy/pharmacy_dashboard_screen.dart';
+// Ambulance Screens
+import 'screens/ambulance/ambulance_driver_login_screen.dart';
+import 'screens/ambulance/refugee_ambulance_request_screen.dart';
+import 'screens/refugee/symptom_input_screen.dart';
+import 'screens/refugee/hospital_selection_screen.dart';
+import 'screens/ambulance/ambulance_driver_dashboard.dart';
+import 'screens/ambulance/ambulance_navigation_screen.dart';
 
-void main() async {
+import 'screens/map_screen.dart';
+import 'screens/refugee/profile_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Firebase since you have firebase_options.dart
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (e) {
-    debugPrint("Firebase initialization failed (ignore if not using Firebase yet): $e");
-  }
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  final themeService = ThemeService();
+  await themeService.load();
 
-  runApp(const MyApp());
+  // No longer clearing session on every boot for production-like performance.
+  // try {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   ...
+  // } catch (e) { ... }
+  runApp(MultiProvider(
+    providers: [ChangeNotifierProvider.value(value: themeService)],
+    child: const MyQueueApp(),
+  ));
 }
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
-
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  final AuthService _authService = AuthService();
-  
-  // This variable holds the ACTUAL widget to start with, preventing routing crashes
-  Widget? _startScreen; 
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _decideStartScreen();
-  }
-
-  Future<void> _decideStartScreen() async {
-    try {
-      // 1. Check if user is logged in
-      final isLoggedIn = await _authService.isLoggedIn();
-
-      if (isLoggedIn) {
-        // 2. If logged in, check which role/screen they were on
-        final savedRoute = await _authService.getSavedRoute();
-        
-        if (savedRoute != null && savedRoute.isNotEmpty) {
-          // Map the saved string to a real Widget
-          if (mounted) {
-            setState(() {
-              _startScreen = _getScreenForRoute(savedRoute);
-              _isLoading = false;
-            });
-          }
-        } else {
-          // Logged in but no saved route? Default to Role Selection
-          if (mounted) {
-            setState(() {
-              _startScreen = const RoleSelectionScreen();
-              _isLoading = false;
-            });
-          }
-        }
-      } else {
-        // 3. Not logged in -> Onboarding
-        if (mounted) {
-          setState(() {
-            _startScreen = const OnboardingScreen();
-            _isLoading = false;
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint("Error in startup logic: $e");
-      // Fallback to Onboarding on error
-      if (mounted) {
-        setState(() {
-          _startScreen = const OnboardingScreen();
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  // --- CENTRAL ROUTE MAPPING ---
-  // This maps your String paths to your Widgets. 
-  // Used for both startup logic and navigation.
-  Widget _getScreenForRoute(String routeName, {Object? args}) {
-    switch (routeName) {
-      // Core Flow
-      case '/onboarding':
-        return const OnboardingScreen();
-      case '/welcome':
-        return const WelcomeScreen(); // Fixed typo in class usage, keeping file name logic
-      case '/role_selection':
-        return const RoleSelectionScreen();
-      
-      // Auth - Refugee
-      case '/auth/refugee_login':
-        return const RefugeeLoginScreen();
-      case '/auth/refugee_signup':
-        return const RefugeeSignupScreen();
-      
-      // Auth - Pharmacy
-      case '/pharmacy/login':
-        return const PharmacyLoginScreen();
-
-      // Dashboards / Homes
-      case '/refugee_home':
-        return const RefugeeHomeScreen();
-      case '/doctor_home':
-        return const DoctorHomeScreen();
-      case '/lab_home':
-        return const LabHomeScreen();
-      case '/pharmacy_dashboard':
-        return const PharmacyDashboardScreen();
-      case '/ambulance_request':
-        return const AmbulanceRequestScreen();
-      case '/map':
-        return const MapScreen();
-
-      // Fallback
-      default:
-        return const RoleSelectionScreen();
-    }
-  }
-
-  // --- ROUTE GENERATOR ---
-  Route<dynamic> _onGenerateRoute(RouteSettings settings) {
-    // Logic for screens that might need arguments (like OTP or Patient Details)
-    /* if (settings.name == '/otp_verification') {
-      final args = settings.arguments;
-      return MaterialPageRoute(
-        builder: (context) => OtpVerificationScreen(verificationId: args as String),
-      );
-    } 
-    */
-
-    // Standard navigation
-    final Widget screen = _getScreenForRoute(settings.name ?? '', args: settings.arguments);
-
-    return MaterialPageRoute(
-      builder: (context) => screen,
-      settings: settings,
-    );
-  }
+class MyQueueApp extends StatelessWidget {
+  const MyQueueApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          backgroundColor: Colors.white,
-          body: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
+    final themeSvc = Provider.of<ThemeService>(context);
+
+    const Color primaryBlue = Color(0xFF386BB8);
+    const Color surfaceBlue = Color(0xFFF8FAFC);
 
     return MaterialApp(
-      title: 'Refugee Queue System',
+      title: 'MyQueue Mobile',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.teal,
         useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: primaryBlue,
+          primary: primaryBlue,
+          surface: Colors.white,
+        ),
+        scaffoldBackgroundColor: surfaceBlue,
+        textTheme:
+            GoogleFonts.dmSansTextTheme(Theme.of(context).textTheme).copyWith(
+          displayLarge: GoogleFonts.poppins(fontWeight: FontWeight.w800),
+          displayMedium: GoogleFonts.poppins(fontWeight: FontWeight.w800),
+          displaySmall: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+          headlineMedium: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+        ),
       ),
-      
-      // *** THE FIX IS HERE ***
-      // We do NOT use 'initialRoute'. We use 'home' with the calculated widget.
-      home: _startScreen ?? const OnboardingScreen(),
-      
-      // We use onGenerateRoute for subsequent navigation (Navigator.pushNamed)
-      onGenerateRoute: _onGenerateRoute,
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: primaryBlue,
+          brightness: Brightness.dark,
+          primary: primaryBlue,
+        ),
+        textTheme:
+            GoogleFonts.dmSansTextTheme(ThemeData.dark().textTheme).copyWith(
+          displayLarge: GoogleFonts.poppins(fontWeight: FontWeight.w800),
+          displayMedium: GoogleFonts.poppins(fontWeight: FontWeight.w800),
+          displaySmall: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+          headlineMedium: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+        ),
+      ),
+      themeMode: themeSvc.mode,
+      home: const SplashScreen(),
+      routes: {
+        '/onboarding': (context) => const OnboardingScreen(),
+        '/role_selection': (context) => const RoleSelectionScreen(),
+        '/auth/refugee_login': (context) => const RefugeeLoginScreenNew(),
+        '/auth/refugee_signup': (context) => const RefugeeSignupScreen(),
+        '/refugee_home': (context) => const RefugeeHomeScreenNew(),
+        '/auth/otp_verification': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments
+              as Map<String, dynamic>?;
+          final String verificationId = args?['verificationId'] ?? 'unknown_id';
+          final String phoneNumber = args?['phoneNumber'] ?? '';
+
+          return OtpVerificationScreen(
+            verificationId: verificationId,
+            phoneNumber: phoneNumber,
+          );
+        },
+        '/join_queue_selection': (context) => const JoinQueueSelectionScreen(),
+        '/add_family_member': (context) => const AddFamilyMemberScreen(),
+        '/refugee_ambulance_request': (context) =>
+            const RefugeeAmbulanceRequestScreen(),
+        '/symptom_input': (context) => const SymptomInputScreen(),
+        '/hospital_selection': (context) => const HospitalSelectionScreen(),
+        '/ambulance_request': (context) => const AmbulanceDriverLoginScreen(),
+        '/ambulance_driver_dashboard': (context) =>
+            const AmbulanceDriverDashboard(),
+        '/ambulance_navigation': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments
+              as Map<String, dynamic>?;
+          if (args == null) {
+            return const Scaffold(
+                body: Center(child: Text('No request data found')));
+          }
+          return AmbulanceNavigationScreen(request: args);
+        },
+        '/map_screen': (context) => const MapScreen(),
+        '/refugee/family_registration': (context) =>
+            const FamilyRegistrationScreen(),
+        '/refugee/join_queue': (context) => const JoinQueueDashboard(),
+        '/profile': (context) => const ProfileScreen(),
+        '/auth_lock': (context) => AuthLockScreen(
+          onAuthenticated: () {
+            Navigator.pushReplacementNamed(context, '/refugee_home');
+          },
+        ),
+        '/account_selector': (context) => const AccountSelectorScreen(),
+      },
     );
   }
 }
+
+// PharmacyDashboardScreen is provided in `lib/screens/pharmacy/pharmacy_dashboard_screen.dart`.

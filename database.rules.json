@@ -1,0 +1,80 @@
+{
+    "rules": {
+        "active_queues": {
+            "$hospitalId": {
+                ".read": "auth != null",
+                "tickets": {
+                    ".read": "auth != null",
+                    "$ticketId": {
+                        ".write": "auth != null",
+                        ".validate": "newData.hasChildren(['queuedAt', 'status'])"
+                    }
+                },
+                "metrics": {
+                    ".read": "auth != null",
+                    ".write": "auth != null"
+                },
+                "archived": {
+                    ".read": "auth != null && (auth.token.role == 'super_admin' || auth.token.role == 'hospital_admin')",
+                    ".write": "auth != null"
+                }
+            }
+        },
+        "userActivity": {
+            "$userId": {
+                ".read": "auth != null && (auth.uid == $userId || auth.token.role == 'super_admin')",
+                ".write": "auth != null && (auth.uid == $userId || auth.token.role == 'super_admin')",
+                "sessions": {
+                    "$sessionId": {
+                        ".validate": "newData.hasChildren(['loginAt'])"
+                    }
+                }
+            }
+        },
+        "events": {
+            ".read": "auth != null && auth.token.role == 'super_admin'",
+            ".write": "auth != null",
+            "$eventId": {
+                ".validate": "newData.hasChildren(['type', 'timestamp'])"
+            }
+        },
+        "serviceLogs": {
+            "$service": {
+                ".read": "auth != null && (auth.token.role == 'super_admin' || auth.token.role == 'hospital_admin')",
+                ".write": "auth != null",
+                "$logId": {
+                    ".validate": "newData.hasChildren(['timestamp'])"
+                }
+            }
+        },
+        "ambulance_locations": {
+            "$ambulanceId": {
+                ".read": "auth != null",
+                ".write": "auth != null && (auth.token.role == 'ambulance' || auth.token.role == 'super_admin')",
+                ".validate": "newData.hasChildren(['lat', 'lng', 'updatedAt'])"
+            }
+        },
+        "notifications": {
+            "$userId": {
+                ".read": "auth != null && auth.uid == $userId",
+                ".write": "auth != null && auth.uid == $userId"
+            }
+        },
+        "queue_counters": {
+            "$hospitalId": {
+                ".read": "auth != null",
+                ".write": "auth != null"
+            }
+        },
+        "emergency_requests": {
+            ".read": "true",
+            ".write": "true"
+        },
+        "ambulance_drivers": {
+            "$driverId": {
+                ".read": "true",
+                ".write": "true"
+            }
+        }
+    }
+}

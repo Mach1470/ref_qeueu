@@ -28,10 +28,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: backgroundColor ?? Colors.teal,
+        color: backgroundColor ?? const Color(0xFF386BB8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withAlpha((0.1 * 255).round()),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -55,7 +55,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       Icons.arrow_back,
                       color: foregroundColor ?? Colors.white,
                     ),
-                    onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
+                    onPressed:
+                        onBackPressed ?? () => Navigator.of(context).pop(),
                   )
                 : null,
             title: Text(

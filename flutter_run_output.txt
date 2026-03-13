@@ -1,0 +1,4 @@
+[{"event":"daemon.connected","params":{"version":"0.6.1","pid":18283}}]
+[{"event":"app.start","params":{"appId":"a02347a4-ef5d-45e4-b511-9e0e0e1ab563","deviceId":"emulator-5554","directory":"/Users/mach/Desktop/MyQeueu","supportsRestart":true,"launchMode":"run","mode":"debug"}}]
+Launching lib/main.dart on sdk gphone64 arm64 in debug mode...
+[{"event":"app.progress","params":{"appId":"a02347a4-ef5d-45e4-b511-9e0e0e1ab563","id":"0","progressId":null,"message":"Running Gradle task 'assembleDebug'...","finished":false}}]

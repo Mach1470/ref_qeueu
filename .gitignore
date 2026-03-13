@@ -48,3 +48,12 @@ pubspec.lock
 .DS_Store
 Thumbs.db
 
+# Next.js (unhcr-health-web)
+unhcr-health-web/.next/
+unhcr-health-web/node_modules/
+unhcr-health-web/.env*
+unhcr-health-web/.vercel/
+unhcr-health-web/npm-debug.log*
+unhcr-health-web/yarn-debug.log*
+unhcr-health-web/yarn-error.log*
+

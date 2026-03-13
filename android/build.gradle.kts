@@ -19,6 +19,17 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Force consistent AndroidX versions to prevent duplicate class definitions at build time
+subprojects {
+    configurations.all {
+        resolutionStrategy {
+            // Force activity library to a single version across all dependencies
+            force("androidx.activity:activity:1.8.1")
+            force("androidx.activity:activity-ktx:1.8.1")
+        }
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }

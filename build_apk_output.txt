@@ -1,0 +1,24 @@
+Running Gradle task 'assembleRelease'...                        
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 6104 bytes (99.6% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+/Users/mach/Desktop/ref_qeueu/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java:54: error: package net.jonhanson.flutter_native_splash does not exist
+      flutterEngine.getPlugins().add(new net.jonhanson.flutter_native_splash.FlutterNativeSplashPlugin());
+                                                                            ^
+1 error
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileReleaseJavaWithJavac'.
+> Compilation failed; see the compiler output below.
+  /Users/mach/Desktop/ref_qeueu/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java:54: error: package net.jonhanson.flutter_native_splash does not exist
+        flutterEngine.getPlugins().add(new net.jonhanson.flutter_native_splash.FlutterNativeSplashPlugin());
+                                                                              ^
+  1 error
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to get full insights.
+
+BUILD FAILED in 1m 50s
+Running Gradle task 'assembleRelease'...                          110.3s
+Gradle task assembleRelease failed with exit code 1

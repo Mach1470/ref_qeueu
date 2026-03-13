@@ -1,48 +1,27 @@
 # Implementation Checklist
 
-This document tracks what has been implemented vs. what needs to be built, based on the original master developer prompt.
+This document tracks what has been implemented vs. what needs to be built for the **Mobile Application**. 
 
-## ✅ COMPLETED (As Per Original Spec)
+*Note: The scope of this mobile application is restricted to the **Refugee** and **Ambulance** roles. Doctor, Pharmacy, and Lab functionalities are managed in the separate Web Application project. The mobile codebase still contains some legacy/initial UI for those roles, which will eventually be migrated/removed.*
+
+## ✅ COMPLETED (Foundation & UI)
 
 ### Foundation
 - [x] Project setup with Flutter
 - [x] Firebase configuration (core, auth, firestore, messaging)
 - [x] Basic navigation structure with named routes
 - [x] Onboarding screen (3 pages: Welcome, Problem, Solution)
-- [x] Role selection screen with animated grid
+- [x] Role selection screen (Updated to show only Refugee and Ambulance roles)
 - [x] All routes defined in `main.dart`
 
 ### Authentication
 - [x] Refugee login screen (phone OTP + email/ID)
 - [x] OTP verification screen
-- [x] Basic auth service (mocked)
-- [x] Pharmacy login screen
-
-### Pharmacy Module (FULLY IMPLEMENTED ✅)
-- [x] Pharmacy login screen (`/pharmacy_login`)
-- [x] Pharmacy dashboard screen (`/pharmacy_dashboard`)
-  - [x] List of patients forwarded from doctor
-  - [x] Patient photo (or placeholder)
-  - [x] Patient name
-  - [x] Condition
-  - [x] Prescription badge (green) OR "Ask for paper script" (orange)
-  - [x] Queue number (#3, #5, etc.)
-  - [x] Overview metrics (queue count, pending prescriptions)
-  - [x] Clean UI with spacing, shadow, modern cards
-- [x] Patient detail screen
-  - [x] Patient name & photo
-  - [x] Condition
-  - [x] Prescription text (if doctor typed in system)
-  - [x] OR orange card telling pharmacist to ask for paper script
-  - [x] "Mark as Served" button
-  - [x] Removes patient from queue on serve
-- [x] Pharmacy models (`pharmacy_models.dart`)
+- [x] Basic auth service (mocked & persistent)
+- [x] Login persistence using SharedPreferences
 
 ### Core Screens (Basic UI)
 - [x] Refugee home screen (basic UI, no queue submission yet)
-- [x] Doctor home screen with patient queue
-- [x] Patient detail screen (doctor view, basic)
-- [x] Lab home screen (placeholder)
 - [x] Ambulance request screen (placeholder)
 - [x] Map screen (basic Google Maps)
 
@@ -50,15 +29,37 @@ This document tracks what has been implemented vs. what needs to be built, based
 - [x] Fixed file naming issues
 - [x] Fixed linter errors
 - [x] Clean architecture structure
+- [x] Custom App Bar & Bottom Navigation components implemented
 
 ---
 
-## 🚧 IN PROGRESS / PARTIAL
+## 💻 MOVED TO WEB APP (Completed or Pending in web scope)
+
+### Pharmacy Module (Fully implemented in mobile codebase, moving to web)
+- [x] Pharmacy login screen (`/pharmacy_login`)
+- [x] Pharmacy dashboard screen (`/pharmacy_dashboard`)
+- [x] Patient detail screen & "Mark as Served" flow
+- [x] Pharmacy models (`pharmacy_models.dart`)
+
+### Doctor Module (Moving to web)
+- [x] Doctor home screen with patient queue
+- [x] Basic patient detail screen (doctor view)
+- [ ] Consultation screen with full workflow (WEB Scope)
+- [ ] Prescription builder (WEB Scope)
+- [ ] Forward to pharmacy/lab (WEB Scope)
+
+### Lab Module (Moving to web)
+- [x] Lab home screen (placeholder)
+- [ ] Lab dashboard with test requests (WEB Scope)
+- [ ] Test result upload (WEB Scope)
+
+---
+
+## 🚧 IN PROGRESS / PARTIAL (Mobile Scope)
 
 ### Authentication
-- [ ] Firebase Auth integration (currently mocked)
-- [ ] Role-based authentication
-- [ ] Session management
+- [ ] Firebase Auth integration (currently mocked/local only)
+- [ ] Full session management and token validation
 
 ### Refugee Module
 - [x] Basic home screen UI
@@ -68,20 +69,6 @@ This document tracks what has been implemented vs. what needs to be built, based
 - [ ] Queue status tracking (NOT STARTED)
 - [ ] Active queue display (NOT STARTED)
 
-### Doctor Module
-- [x] Patient list view
-- [x] Basic patient detail screen
-- [ ] Consultation screen with full workflow (NOT STARTED)
-- [ ] Prescription builder (NOT STARTED)
-- [ ] Lab test request form (NOT STARTED)
-- [ ] Forward to pharmacy/lab (NOT STARTED)
-
-### Lab Module
-- [x] Basic placeholder screen
-- [ ] Lab dashboard with test requests (NOT STARTED)
-- [ ] Test result upload (NOT STARTED)
-- [ ] Test request/result models (NOT STARTED)
-
 ### Ambulance Module
 - [x] Basic UI screen
 - [ ] Real-time location tracking (NOT STARTED)
@@ -89,70 +76,34 @@ This document tracks what has been implemented vs. what needs to be built, based
 - [ ] Status updates (NOT STARTED)
 - [ ] Driver dashboard (NOT STARTED)
 
-### Data Models
-- [x] Patient model (doctor view)
-- [x] Patient model (pharmacy view)
-- [x] Medicine model
-- [ ] Unified Patient model (TODO)
-- [ ] Queue model (NOT STARTED)
-- [ ] Hospital model (NOT STARTED)
-- [ ] Prescription model (NOT STARTED)
-- [ ] TestRequest model (NOT STARTED)
-- [ ] TestResult model (NOT STARTED)
-- [ ] AmbulanceRequest model (NOT STARTED)
-
 ---
 
-## ❌ NOT STARTED (Critical Features)
+## ❌ NOT STARTED (Critical Mobile Features)
 
 ### Phase 1: Refugee Queue Submission (HIGHEST PRIORITY)
 **Status**: NOT STARTED
 **Estimated**: 8-12 hours
 
 - [ ] Create `queue_submission_screen.dart`
-- [ ] Implement location service
+- [ ] Implement location service (`geolocator`)
 - [ ] Hospital selection with distance calculation
 - [ ] Symptom input form
 - [ ] Image picker integration
-- [ ] Queue submission logic (mocked)
-- [ ] Update refugee home screen with queue status
+- [ ] Queue submission logic to Firestore
+- [ ] Update refugee home screen with active queue status
 
-### Phase 2: Doctor Prescription Flow (HIGH PRIORITY)
+### Phase 2: Firestore Integration (HIGH PRIORITY)
 **Status**: NOT STARTED
-**Estimated**: 10-15 hours
+**Estimated**: 15-20 hours
 
-- [ ] Enhance patient detail screen → consultation screen
-- [ ] Diagnosis input
-- [ ] Prescription builder
-- [ ] Lab test request form
-- [ ] Forward to pharmacy functionality
-- [ ] Forward to lab functionality
-- [ ] Mark consultation complete
-
-### Phase 3: Lab Module (MEDIUM PRIORITY)
-**Status**: NOT STARTED
-**Estimated**: 8-10 hours
-
-- [ ] Lab dashboard implementation
-- [ ] Test request list
-- [ ] Test result upload screen
-- [ ] Test models
-- [ ] Status updates
-
-### Phase 4: Firestore Integration (HIGH PRIORITY)
-**Status**: NOT STARTED
-**Estimated**: 20-30 hours
-
-- [ ] Firestore setup and configuration
-- [ ] Queue service
+- [ ] Firestore setup and configuration confirmation
+- [ ] Queue service (Refugee joining lists)
 - [ ] Patient service
-- [ ] Prescription service
-- [ ] Lab service
 - [ ] Ambulance service
-- [ ] Real-time listeners
+- [ ] Real-time listeners for wait time / position updates
 - [ ] Security rules
 
-### Phase 5: Ambulance Tracking (MEDIUM PRIORITY)
+### Phase 3: Ambulance Tracking (MEDIUM PRIORITY)
 **Status**: NOT STARTED
 **Estimated**: 12-15 hours
 
@@ -166,32 +117,20 @@ This document tracks what has been implemented vs. what needs to be built, based
 
 ## 📋 Next Immediate Actions
 
-### Week 1 (IMMEDIATE)
-1. ✅ Fix file naming and linter errors (DONE)
-2. **Unify Patient models** (2-3 hours)
-   - Create single model in `lib/models/patient.dart`
-   - Update pharmacy module to use unified model
-   - Remove duplicate model
+### Step 1 (IMMEDIATE)
+1. **Create Queue Submission Screen** (8-10 hours)
+   - This is the CORE feature for refugees.
+   - Form for symptoms, images, and hospital selection based on location.
 
-3. **Create Queue Submission Screen** (8-10 hours)
-   - This is the CORE feature for refugees
-   - Must be completed before Firestore integration
+### Step 2 
+1. **Firestore Integration for Refugee Flow** (10-15 hours)
+   - Link the submission screen to Firestore.
+   - Add real-time listeners for queue position on the refugee home screen.
 
-### Week 2
-1. **Complete Doctor Prescription Flow** (10-15 hours)
-   - Consultation screen
-   - Prescription builder
-   - Lab test requests
-
-2. **Start Lab Module** (4-6 hours)
-   - Basic dashboard
-   - Test request list
-
-### Week 3-4
-1. **Firestore Integration** (20-30 hours)
-   - Start with queue and patient collections
-   - Add real-time listeners
-   - Implement security rules
+### Step 3
+1. **Ambulance Tracking Flow** (10-15 hours)
+   - Driver dashboard.
+   - Real-time location updates.
 
 ---
 
@@ -199,40 +138,27 @@ This document tracks what has been implemented vs. what needs to be built, based
 
 1. **CRITICAL** (Blocking core functionality):
    - Refugee queue submission
-   - Doctor prescription flow
-   - Unified Patient model
+   - Firestore integration for queue joining
 
 2. **HIGH** (Needed for complete workflow):
-   - Lab module
-   - Firestore integration
-   - Real-time updates
+   - Real-time updates for wait times and queue position
 
 3. **MEDIUM** (Enhancements):
    - Ambulance tracking
    - Notifications
-   - Profile management
-
-4. **LOW** (Nice to have):
-   - Analytics
-   - Multi-language
-   - Advanced features
 
 ---
 
-## 📊 Progress Summary
+## 📊 Progress Summary (Mobile Scope Only)
 
 - **Foundation**: 100% ✅
-- **Pharmacy Module**: 100% ✅
 - **Authentication**: 60% 🚧
 - **Refugee Module**: 20% 🚧
-- **Doctor Module**: 40% 🚧
-- **Lab Module**: 5% 🚧
 - **Ambulance Module**: 10% 🚧
 - **Firestore Integration**: 0% ❌
-- **Overall**: ~35% Complete
+- **Overall (Mobile Scope)**: ~40% Complete
 
 ---
 
 **Last Updated**: [Current Date]
-**Next Review**: After completing queue submission screen
-
+**Next Review**: After completing refugee queue submission screen

@@ -1,0 +1,121 @@
+{
+    "indexes": [
+        {
+            "collectionGroup": "incoming",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "facilityId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "queueOrder",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "pharmacy",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "facilityId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "queueOrder",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "lab",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "facilityId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "queueOrder",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "maternity",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "facilityId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "queueOrder",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "treatments",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "facilityId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "timestamp",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "births",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "facilityId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "birthDate",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "prescriptions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "patientId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "lab_requests",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "hospitalId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "status",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "ASCENDING"
+                }
+            ]
+        }
+    ],
+    "fieldOverrides": []
+}

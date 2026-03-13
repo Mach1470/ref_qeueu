@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../services/auth_service.dart';
 
 class RefugeeSignupScreen extends StatefulWidget {
@@ -11,7 +12,6 @@ class RefugeeSignupScreen extends StatefulWidget {
 class _RefugeeSignupScreenState extends State<RefugeeSignupScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _idController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -22,8 +22,13 @@ class _RefugeeSignupScreenState extends State<RefugeeSignupScreen> {
 
   bool _loading = false;
   bool _obscurePassword = true;
-
   final AuthService _authService = AuthService();
+  final TextEditingController _dobController = TextEditingController();
+  DateTime? _selectedDate;
+  bool _isMinor = false;
+
+  static const Color primaryBlue = Color(0xFF386BB8);
+  static const Color textMain = Color(0xFF131316);
 
   @override
   void dispose() {
@@ -36,37 +41,88 @@ class _RefugeeSignupScreenState extends State<RefugeeSignupScreen> {
     super.dispose();
   }
 
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: primaryBlue,
+              onPrimary: Colors.white,
+              onSurface: textMain,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+        _dobController.text = "${picked.toLocal()}".split(' ')[0];
+        // Check age
+        final age = DateTime.now().difference(picked).inDays ~/ 365;
+        _isMinor = age < 18;
+      });
+    }
+  }
+
   void _handleSignup() async {
     if (_formKey.currentState!.validate()) {
+      if (_selectedDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select Date of Birth')),
+        );
+        return;
+      }
+
       final rawPhone = _phoneController.text.trim();
-      // Ensure phone has country code (matching logic in Login Screen)
-      final phone = rawPhone.startsWith('+') ? rawPhone : '+254$rawPhone';
+      // If minor and phone is empty, use 'N/A' or handle in backend.
+      // AuthService needs to be updated to handle this, but for now we pass empty if minor.
+      String phone = '';
+      if (rawPhone.isNotEmpty) {
+        phone = rawPhone.startsWith('+') ? rawPhone : '+254$rawPhone';
+      } else if (_isMinor) {
+        // Allow empty for minor
+        phone = '';
+      }
 
       setState(() => _loading = true);
 
-      // Call AuthService
+      //Pass DOB to auth service (need to update AuthService later or pass in profile data)
+      // For now using signUpBasic which simulates it.
+
       final error = await _authService.signUpBasic(
+        name: _nameController.text.trim(),
+        dob: _dobController.text.trim(),
         individualNumber: _idController.text.trim(),
         phone: phone,
         password: _passwordController.text,
         email: _emailController.text.trim(),
-        // You might want to add 'name' to your AuthService signUpBasic method
       );
+
+      // TODO: Save DOB to profile in a separate step or update signUpBasic.
+      // I'll update AuthService in the next step to accept DOB.
 
       setState(() => _loading = false);
 
       if (!mounted) return;
 
       if (error == null) {
-        // Success: Navigate to Home or Login
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account created successfully!')),
+          const SnackBar(
+              content: Text('Account created successfully!'),
+              behavior: SnackBarBehavior.floating),
         );
         Navigator.pushNamedAndRemoveUntil(
             context, '/refugee_home', (route) => false);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error)),
+          SnackBar(content: Text(error), behavior: SnackBarBehavior.floating),
         );
       }
     }
@@ -74,142 +130,201 @@ class _RefugeeSignupScreenState extends State<RefugeeSignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        backgroundColor:
-            const Color(0xFFF5F5F5), // Slight off-white to make inputs pop
-        appBar: AppBar(
-          title: const Text('Create Account'),
-          backgroundColor: Colors.teal,
-          elevation: 0,
-        ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Sign up',
-                    style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal)),
-                const SizedBox(height: 8),
-                const Text(
-                    'Enter your details to register for the queue system.'),
-                const SizedBox(height: 24),
-
-                // Full Name
-                _inputCell(
-                  controller: _nameController,
-                  hint: 'Full Name',
-                  icon: Icons.person_outline,
-                  validator: (val) => val!.isEmpty ? 'Name is required' : null,
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text('New Account',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
+        backgroundColor: Colors.white,
+        foregroundColor: textMain,
+        elevation: 0,
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Join MyQueue',
+                style: GoogleFonts.poppins(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: textMain,
+                  letterSpacing: -0.5,
                 ),
-                const SizedBox(height: 16),
-
-                // Individual Number (ID)
-                _inputCell(
-                  controller: _idController,
-                  hint: 'Individual Number / ID',
-                  icon: Icons.badge_outlined,
-                  validator: (val) => val!.isEmpty ? 'ID is required' : null,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Create an account to access healthcare facilities and track your queue status.',
+                style: GoogleFonts.dmSans(
+                  fontSize: 16,
+                  color: const Color(0xFF64748B),
+                  height: 1.5,
                 ),
-                const SizedBox(height: 16),
-
-                // Phone Number
-                _inputCell(
-                  controller: _phoneController,
-                  hint: '712345678',
-                  prefix: '+254',
-                  inputType: TextInputType.phone,
-                  validator: (val) => (val == null || val.length < 9)
-                      ? 'Enter valid phone'
-                      : null,
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.amber.withOpacity(0.3)),
                 ),
-                const SizedBox(height: 16),
-
-                // Email (Optional)
-                _inputCell(
-                  controller: _emailController,
-                  hint: 'Email Address (Optional)',
-                  icon: Icons.email_outlined,
-                  inputType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 16),
-
-                // Password
-                _inputCell(
-                  controller: _passwordController,
-                  hint: 'Password',
-                  icon: Icons.lock_outline,
-                  obscure: _obscurePassword,
-                  isPassword: true,
-                  validator: (val) => (val != null && val.length < 6)
-                      ? 'Min 6 characters'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-
-                // Confirm Password
-                _inputCell(
-                  controller: _confirmPasswordController,
-                  hint: 'Confirm Password',
-                  icon: Icons.lock_outline,
-                  obscure: _obscurePassword,
-                  isPassword: true,
-                  validator: (val) {
-                    if (val != _passwordController.text)
-                      return 'Passwords do not match';
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 32),
-
-                // Sign Up Button
-                ElevatedButton(
-                  onPressed: _loading ? null : _handleSignup,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    minimumSize: const Size.fromHeight(50),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: _loading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Create Account',
-                          style: TextStyle(fontSize: 16, color: Colors.white)),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Back to Login
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text("Already have an account?"),
-                    TextButton(
-                      onPressed: () {
-                        // Navigate back to login
-                        Navigator.pop(context);
-                        // Or specifically: Navigator.pushNamed(context, '/auth/refugee_login');
-                      },
-                      child: const Text('Login',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Icon(Icons.info_outline_rounded,
+                        color: Colors.amber, size: 14),
+                    const SizedBox(width: 8),
+                    Text(
+                      'DEMO MODE ACTIVE',
+                      style: GoogleFonts.dmSans(
+                        color: Colors.amber,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1,
+                      ),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 32),
+              _inputLabel('Full Name'),
+              _inputCell(
+                controller: _nameController,
+                hint: 'John Doe',
+                icon: Icons.person_outline,
+                validator: (val) => val!.isEmpty ? 'Name is required' : null,
+              ),
+              const SizedBox(height: 20),
+              _inputLabel('Individual Number (ID)'),
+              _inputCell(
+                controller: _idController,
+                hint: '123-45678',
+                icon: Icons.badge_outlined,
+                validator: (val) => val!.isEmpty ? 'ID is required' : null,
+              ),
+              const SizedBox(height: 20),
+              _inputLabel('Date of Birth'),
+              InkWell(
+                onTap: () => _selectDate(context),
+                child: AbsorbPointer(
+                  child: _inputCell(
+                    controller: _dobController,
+                    hint: 'YYYY-MM-DD',
+                    icon: Icons.calendar_today_outlined,
+                    validator: (val) => val!.isEmpty ? 'DOB is required' : null,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              _inputLabel('Phone Number'),
+              _inputCell(
+                controller: _phoneController,
+                hint: '712345678',
+                prefix: '+254',
+                icon: Icons.phone_android_outlined,
+                inputType: TextInputType.phone,
+                validator: (val) {
+                  if (_isMinor && (val == null || val.isEmpty)) return null;
+                  if (val == null || val.length < 9) return 'Enter valid phone';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
+              _inputLabel('Email Address (Optional)'),
+              _inputCell(
+                controller: _emailController,
+                hint: 'email@example.com',
+                icon: Icons.email_outlined,
+                inputType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 20),
+              _inputLabel('Password'),
+              _inputCell(
+                controller: _passwordController,
+                hint: '••••••••',
+                icon: Icons.lock_outline,
+                obscure: _obscurePassword,
+                isPassword: true,
+                validator: (val) =>
+                    (val != null && val.length < 6) ? 'Min 6 characters' : null,
+              ),
+              const SizedBox(height: 20),
+              _inputLabel('Confirm Password'),
+              _inputCell(
+                controller: _confirmPasswordController,
+                hint: '••••••••',
+                icon: Icons.lock_outline,
+                obscure: _obscurePassword,
+                isPassword: true,
+                validator: (val) {
+                  if (val != _passwordController.text) {
+                    return 'Passwords do not match';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 40),
+              ElevatedButton(
+                onPressed: _loading ? null : _handleSignup,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryBlue,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(56),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+                child: _loading
+                    ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 3))
+                    : Text('Create Account',
+                        style: GoogleFonts.dmSans(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text("Already have an account?",
+                      style:
+                          GoogleFonts.dmSans(color: const Color(0xFF64748B))),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Login',
+                        style: GoogleFonts.dmSans(
+                            color: primaryBlue, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  // Consistent Input Styling Method
+  Widget _inputLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        label,
+        style: GoogleFonts.dmSans(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: textMain,
+        ),
+      ),
+    );
+  }
+
   Widget _inputCell({
     required TextEditingController controller,
     required String hint,
@@ -221,25 +336,22 @@ class _RefugeeSignupScreenState extends State<RefugeeSignupScreen> {
     String? Function(String?)? validator,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.teal.shade50),
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
         children: [
+          const SizedBox(width: 16),
+          if (icon != null) Icon(icon, color: primaryBlue, size: 20),
+          if (icon != null) const SizedBox(width: 12),
           if (prefix != null)
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
               child: Text(prefix,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, color: Colors.teal)),
-            ),
-          if (icon != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: Icon(icon, color: Colors.teal, size: 20),
+                  style: GoogleFonts.dmSans(
+                      fontWeight: FontWeight.bold, color: textMain)),
             ),
           Expanded(
             child: TextFormField(
@@ -247,17 +359,20 @@ class _RefugeeSignupScreenState extends State<RefugeeSignupScreen> {
               obscureText: obscure,
               keyboardType: inputType,
               validator: validator,
+              style: GoogleFonts.dmSans(fontSize: 16, color: textMain),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: hint,
-                hintStyle: TextStyle(color: Colors.grey.shade400),
+                hintStyle: GoogleFonts.dmSans(color: const Color(0xFF94A3B8)),
+                contentPadding: const EdgeInsets.symmetric(vertical: 16),
                 suffixIcon: isPassword
                     ? IconButton(
                         icon: Icon(
                             _obscurePassword
                                 ? Icons.visibility_off
                                 : Icons.visibility,
-                            color: Colors.grey),
+                            color: const Color(0xFF94A3B8),
+                            size: 20),
                         onPressed: () => setState(
                             () => _obscurePassword = !_obscurePassword),
                       )
@@ -265,6 +380,7 @@ class _RefugeeSignupScreenState extends State<RefugeeSignupScreen> {
               ),
             ),
           ),
+          const SizedBox(width: 16),
         ],
       ),
     );

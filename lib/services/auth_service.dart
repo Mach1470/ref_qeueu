@@ -1,4 +1,3 @@
-// Auth Service with login persistence
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,6 +12,7 @@ class AuthService {
   static const String _keyIsLoggedIn = 'is_logged_in';
   static const String _keyPharmacyId = 'pharmacy_id';
   static const String _keySessionId = 'session_id';
+  static const String _keyRememberedAccounts = 'remembered_accounts';
 
   // Simulate sending OTP. Return a fake verificationId on success.
   Future<String?> sendOtp({required String phone}) async {
@@ -34,216 +34,306 @@ class AuthService {
     }
   }
 
-  // Simulate email/id+password sign in
+  // Login with email/id with timeouts
   Future<String?> signInWithEmailOrId(
       {required String idOrEmail,
       required String password,
       String? role}) async {
-    await Future.delayed(const Duration(seconds: 1));
-    // demo: password 'password' works
-    if (password == 'password') {
-      // Save login state
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_keyIsLoggedIn, true);
-      await prefs.setString(_keyUserEmail, idOrEmail);
-      if (role != null) {
-        await prefs.setString(_keyUserRole, role);
+    try {
+      await Future.delayed(const Duration(seconds: 1))
+          .timeout(const Duration(seconds: 5));
+
+      // demo: password 'password' works
+      if (password == 'password') {
+        final prefs = await SharedPreferences.getInstance()
+            .timeout(const Duration(seconds: 5));
+        await prefs.setBool(_keyIsLoggedIn, true);
+        await prefs.setString(_keyUserEmail, idOrEmail);
+        if (role != null) {
+          await prefs.setString(_keyUserRole, role);
+        }
+        
+        // Remember account for multi-account selector
+        await rememberAccount(
+          id: idOrEmail,
+          name: idOrEmail.split('@')[0], // Extract name from email or use id
+          role: role ?? 'user',
+          email: idOrEmail.contains('@') ? idOrEmail : null,
+        );
+
+        // Log event and start session - wrap in try-catch and timeout to prevent hang
+        try {
+          final actorKey = idOrEmail.replaceAll('.', '_');
+          await DatabaseService.instance.logEvent({
+            'type': 'signin',
+            'actor': actorKey,
+            'role': role ?? 'user',
+          }).timeout(const Duration(seconds: 10));
+
+          final sessionId = await DatabaseService.instance.startSession(
+              actorKey,
+              {'method': 'email'}).timeout(const Duration(seconds: 10));
+
+          if (sessionId != null) {
+            await prefs.setString(_keySessionId, sessionId);
+          }
+        } catch (dbError) {
+          print('DEBUG: Non-fatal DB error during signin: $dbError');
+          // Still return null (success) because local auth state is saved
+        }
+        return null;
       }
-      // Log event and start session
-      try {
-        final actorKey = idOrEmail.replaceAll('.', '_');
-        await DatabaseService.instance.logEvent({
-          'type': 'signin',
-          'actor': actorKey,
-          'role': role ?? 'user',
-        });
-        final sessionId = await DatabaseService.instance
-            .startSession(actorKey, {'method': 'email'});
-        if (sessionId != null) await prefs.setString(_keySessionId, sessionId);
-      } catch (_) {}
-      return null;
+      return 'Invalid credentials (demo). Use password = "password".';
+    } catch (e) {
+      print('DEBUG: signInWithEmailOrId error: $e');
+      return 'Login failed: ${e.toString()}';
     }
-    return 'Invalid credentials (demo). Use password = "password".';
   }
 
-  // Simulate sign up
+  // Sign up with logging and timeouts for debugging
   Future<String?> signUpBasic(
       {required String individualNumber,
       required String phone,
+      required String name,
+      required String dob,
       String? password,
       String? email}) async {
-    await Future.delayed(const Duration(seconds: 1));
-    // Save sign up state
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyUserId, individualNumber);
-    await prefs.setString(_keyUserPhone, phone);
-    if (email != null && email.isNotEmpty) {
-      await prefs.setString(_keyUserEmail, email);
-    }
-    // Attempt to create a Firebase Auth user when possible so the user shows up
-    // in the Firebase Authentication console. Prefer creating with provided
-    // email+password; if email is missing but a password exists we create a
-    // synthetic email based on phone/ID so the account is still created.
+    print('DEBUG: signUpBasic started for $individualNumber ($name)');
+
     try {
-      UserCredential? cred;
-      final auth = FirebaseAuth.instance;
-      if (email != null &&
-          email.isNotEmpty &&
-          password != null &&
-          password.isNotEmpty) {
-        cred = await auth.createUserWithEmailAndPassword(
-            email: email, password: password);
-      } else if (password != null && password.isNotEmpty) {
-        // Create a synthetic email from phone or individualNumber to register
-        final safe = (phone.isNotEmpty
-            ? phone.replaceAll(RegExp(r'[^0-9]'), '')
-            : individualNumber);
-        final syntheticEmail = '$safe@phone.refugee.local';
-        cred = await auth.createUserWithEmailAndPassword(
-            email: syntheticEmail, password: password);
-        // Save the synthetic email locally so subsequent sign-in can use it
-        await prefs.setString(_keyUserEmail, syntheticEmail);
+      await Future.delayed(const Duration(seconds: 1))
+          .timeout(const Duration(seconds: 5));
+
+      final prefs = await SharedPreferences.getInstance()
+          .timeout(const Duration(seconds: 5));
+      await prefs.setString(_keyUserId, individualNumber);
+      await prefs.setString(_keyUserPhone, phone);
+      if (email != null && email.isNotEmpty) {
+        await prefs.setString(_keyUserEmail, email);
       }
 
-      // If we created a Firebase user, include the uid in the profile written
-      // to the Realtime Database for easier mapping.
+      print('DEBUG: prefs saved. Attempting Firebase Auth...');
+
+      UserCredential? cred;
+      final auth = FirebaseAuth.instance;
+
+      try {
+        if (email != null &&
+            email.isNotEmpty &&
+            password != null &&
+            password.isNotEmpty) {
+          cred = await auth
+              .createUserWithEmailAndPassword(email: email, password: password)
+              .timeout(const Duration(seconds: 15));
+        } else if (password != null && password.isNotEmpty) {
+          final safe = (phone.isNotEmpty
+              ? phone.replaceAll(RegExp(r'[^0-9]'), '')
+              : individualNumber);
+          final syntheticEmail = '$safe@phone.refugee.local';
+          cred = await auth
+              .createUserWithEmailAndPassword(
+                  email: syntheticEmail, password: password)
+              .timeout(const Duration(seconds: 15));
+          await prefs.setString(_keyUserEmail, syntheticEmail);
+        }
+        print('DEBUG: Firebase Auth success: ${cred?.user?.uid}');
+      } catch (authError) {
+        print('DEBUG: Firebase Auth failed (non-fatal): $authError');
+        // Continue to profile creation even if auth fails (offline or config issues)
+      }
+
       final profile = <String, dynamic>{
+        'name': name,
+        'dob': dob,
         'individualNumber': individualNumber,
         'phone': phone,
         'email': prefs.getString(_keyUserEmail),
         'role': 'refugee',
+        'createdAt': DateTime.now().toIso8601String(),
       };
       if (cred?.user != null) profile['uid'] = cred!.user!.uid;
 
-      await DatabaseService.instance.createUserProfile(profile);
+      print('DEBUG: Creating user profile in Database...');
+      // Increased timeout to 20s to prevent premature failure on slow networks
+      await DatabaseService.instance
+          .createUserProfile(profile)
+          .timeout(const Duration(seconds: 20), onTimeout: () {
+        print('DEBUG: Database createUserProfile timed out, but proceeding...');
+      });
+
+      print('DEBUG: Logging event...');
       await DatabaseService.instance.logEvent({
         'type': 'signup',
         'actor': profile['uid'] ?? phone,
         'role': 'refugee',
-      });
-      // If Firebase user was created, start a session and save session id locally
+      }).timeout(const Duration(seconds: 5));
+
       if (cred?.user != null) {
+        print('DEBUG: Starting session...');
         final actorKey = cred!.user!.uid;
-        final sessionId = await DatabaseService.instance
-            .startSession(actorKey, {'method': 'signup'});
+        final sessionId = await DatabaseService.instance.startSession(actorKey,
+            {'method': 'signup'}).timeout(const Duration(seconds: 10));
         if (sessionId != null) await prefs.setString(_keySessionId, sessionId);
       }
+
+      print('DEBUG: signUpBasic completed successfully');
     } catch (e) {
-      // Non-fatal: fall back to storing profile in DB without an auth user
-      try {
-        await DatabaseService.instance.createUserProfile({
-          'individualNumber': individualNumber,
-          'phone': phone,
-          'email': prefs.getString(_keyUserEmail),
-          'role': 'refugee',
-        });
-        await DatabaseService.instance.logEvent({
-          'type': 'signup',
-          'actor': phone,
-          'role': 'refugee',
-        });
-      } catch (_) {}
+      print('DEBUG: signUpBasic fatal error: $e');
+      return 'Signup failed: ${e.toString()}';
     }
-    // return null on success
+
     // After creating the profile, also add the primary user to the join queue
     try {
-      final actorKey = (email ?? phone).replaceAll('+', '').replaceAll(RegExp(r'[^0-9a-zA-Z]'), '_');
       final profile = {
         'individualNumber': individualNumber,
         'phone': phone,
-        'email': prefs.getString(_keyUserEmail),
+        'email': (email != null && email.isNotEmpty)
+            ? email
+            : '$individualNumber@phone.refugee.local',
         'role': 'refugee',
-        'name': prefs.getString('user_name') ?? individualNumber,
+        'name': individualNumber,
       };
-      // Fire-and-forget; do not block signup flow on DB network
-      Future(() async {
-        try {
-          await DatabaseService.instance.addToJoinQueue(profile);
-        } catch (_) {}
-      });
+      unawaited(DatabaseService.instance
+          .addToJoinQueue(profile)
+          .timeout(const Duration(seconds: 10)));
     } catch (_) {}
 
     return null;
   }
 
-  // Family member helpers (stored locally under the owner's device)
+  // Family member helpers (synced with Firestore)
   Future<void> addFamilyMember(Map<String, dynamic> member) async {
     final prefs = await SharedPreferences.getInstance();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+
+    // 1. Save locally for immediate UI update
     final key = 'family_members';
     final existing = prefs.getStringList(key) ?? <String>[];
     existing.add(member.entries
         .map((e) => '${e.key}=${Uri.encodeComponent(e.value.toString())}')
         .join('&'));
     await prefs.setStringList(key, existing);
+
+    // 2. Sync to Firestore if logged in
+    if (uid != null) {
+      try {
+        await DatabaseService.instance.addFamilyMember(uid, member);
+      } catch (e) {
+        print('DEBUG: Error syncing family member to Firestore: $e');
+      }
+    }
   }
 
   Future<List<Map<String, String>>> getFamilyMembers() async {
     final prefs = await SharedPreferences.getInstance();
     final key = 'family_members';
     final existing = prefs.getStringList(key) ?? <String>[];
+
     final out = <Map<String, String>>[];
-    for (final s in existing) {
-      final map = <String, String>{};
-      for (final part in s.split('&')) {
-        final kv = part.split('=');
-        if (kv.length == 2) {
-          map[kv[0]] = Uri.decodeComponent(kv[1]);
+    if (existing.isNotEmpty) {
+      for (final s in existing) {
+        final map = <String, String>{};
+        for (final part in s.split('&')) {
+          final kv = part.split('=');
+          if (kv.length == 2) {
+            map[kv[0]] = Uri.decodeComponent(kv[1]);
+          }
+        }
+        out.add(map);
+      }
+    } else {
+      // Fallback: Fetch from Firestore if local is empty and user is logged in
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        try {
+          final remoteMembers =
+              await DatabaseService.instance.getFamilyMembers(uid);
+          for (final member in remoteMembers) {
+            final map = member.map((k, v) => MapEntry(k, v.toString()));
+            out.add(map);
+
+            // Re-populate local cache
+            existing.add(map.entries
+                .map((e) =>
+                    '${e.key}=${Uri.encodeComponent(e.value.toString())}')
+                .join('&'));
+          }
+          if (existing.isNotEmpty) await prefs.setStringList(key, existing);
+        } catch (e) {
+          print('DEBUG: Error fetching family members from Firestore: $e');
         }
       }
-      out.add(map);
     }
     return out;
   }
 
   // Save login state for refugee (phone login)
-  // Save login state for refugee (phone login)
-  // Optional demo fields let callers populate a small local demo profile
+  // Save login state for refugee (phone login) with timeouts
   Future<void> saveRefugeeLogin(String phone,
       {String? displayName, String? demoId, int? queuePosition}) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyIsLoggedIn, true);
-    await prefs.setString(_keyUserRole, 'refugee');
-    await prefs.setString(_keyRememberedRole, 'refugee');
-    await prefs.setString(_keyUserPhone, phone);
-
-    // Optionally persist demo-visible fields locally so the UI can show them
-    if (displayName != null && displayName.isNotEmpty) {
-      await prefs.setString('user_name', displayName);
-    }
-    if (demoId != null && demoId.isNotEmpty) {
-      await prefs.setString(_keyUserId, demoId);
-    }
-    if (queuePosition != null) {
-      await prefs.setInt('queue_position', queuePosition);
-    }
-
-    // Log auth event and start session in Realtime DB
     try {
-      final actorKey =
-          phone.replaceAll('+', '').replaceAll(RegExp(r'[^0-9]'), '');
+      final prefs = await SharedPreferences.getInstance()
+          .timeout(const Duration(seconds: 5));
+      await prefs.setBool(_keyIsLoggedIn, true);
+      await prefs.setString(_keyUserRole, 'refugee');
+      await prefs.setString(_keyRememberedRole, 'refugee');
+      await prefs.setString(_keyUserPhone, phone);
 
-      // Create a lightweight demo profile record when demo details are provided
-      if (displayName != null || demoId != null) {
-        try {
-          await DatabaseService.instance.createUserProfile({
-            'name': displayName ?? 'Refugee',
-            'phone': phone,
-            'role': 'refugee',
-            'demoId': demoId ?? '',
-          });
-        } catch (_) {}
+      if (displayName != null && displayName.isNotEmpty) {
+        await prefs.setString('user_name', displayName);
+      }
+      if (demoId != null && demoId.isNotEmpty) {
+        await prefs.setString(_keyUserId, demoId);
+      }
+      
+      // Remember account for multi-account selector
+      await rememberAccount(
+        id: phone,
+        name: displayName ?? 'Refugee',
+        role: 'refugee',
+        phone: phone,
+      );
+      if (queuePosition != null) {
+        await prefs.setInt('queue_position', queuePosition);
       }
 
-      await DatabaseService.instance.logEvent({
-        'type': 'signin',
-        'actor': actorKey,
-        'role': 'refugee',
-        'method': 'phone'
-      });
-      final sessionId = await DatabaseService.instance
-          .startSession(actorKey, {'method': 'phone'});
-      if (sessionId != null) await prefs.setString(_keySessionId, sessionId);
-    } catch (_) {}
+      // Log auth event and start session in Realtime DB in the background
+      unawaited(Future(() async {
+        try {
+          final actorKey =
+              phone.replaceAll('+', '').replaceAll(RegExp(r'[^0-9]'), '');
+
+          if (displayName != null || demoId != null) {
+            try {
+              await DatabaseService.instance.createUserProfile({
+                'name': displayName ?? 'Refugee',
+                'phone': phone,
+                'role': 'refugee',
+                'demoId': demoId ?? '',
+              }).timeout(const Duration(seconds: 10));
+            } catch (_) {}
+          }
+
+          await DatabaseService.instance.logEvent({
+            'type': 'signin',
+            'actor': actorKey,
+            'role': 'refugee',
+            'method': 'phone'
+          }).timeout(const Duration(seconds: 10));
+
+          final sessionId = await DatabaseService.instance.startSession(
+              actorKey,
+              {'method': 'phone'}).timeout(const Duration(seconds: 10));
+
+          if (sessionId != null) {
+            final p = await SharedPreferences.getInstance();
+            await p.setString(_keySessionId, sessionId);
+          }
+        } catch (_) {}
+      }));
+    } catch (e) {
+      print('DEBUG: saveRefugeeLogin local error: $e');
+    }
   }
 
   // Save login state for doctor
@@ -413,12 +503,64 @@ class AuthService {
         });
       }
     } catch (_) {}
-    // Preserve the remembered role across logout
+    // Preserve the remembered role and accounts across logout
     final remembered = prefs.getString(_keyRememberedRole);
+    final accounts = prefs.getStringList(_keyRememberedAccounts);
     await prefs.clear();
     if (remembered != null) {
       await prefs.setString(_keyRememberedRole, remembered);
     }
+    if (accounts != null) {
+      await prefs.setStringList(_keyRememberedAccounts, accounts);
+    }
+  }
+
+  // --- Multi-Account Management ---
+
+  Future<void> rememberAccount({
+    required String id,
+    required String name,
+    required String role,
+    String? phone,
+    String? email,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> accounts = prefs.getStringList(_keyRememberedAccounts) ?? [];
+    
+    // Format: id|name|role|phone|email
+    final String entry = '$id|$name|$role|${phone ?? ''}|${email ?? ''}';
+    
+    // Remove if already exists with same id
+    accounts.removeWhere((a) => a.startsWith('$id|'));
+    accounts.insert(0, entry); // Most recent first
+    
+    // Keep last 5 accounts
+    if (accounts.length > 5) accounts.removeLast();
+    
+    await prefs.setStringList(_keyRememberedAccounts, accounts);
+  }
+
+  Future<List<Map<String, String>>> getRememberedAccounts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> list = prefs.getStringList(_keyRememberedAccounts) ?? [];
+    
+    return list.map((s) {
+      final parts = s.split('|');
+      return {
+        'id': parts.length > 0 ? parts[0] : '',
+        'name': parts.length > 1 ? parts[1] : '',
+        'role': parts.length > 2 ? parts[2] : '',
+        'phone': parts.length > 3 ? parts[3] : '',
+        'email': parts.length > 4 ? parts[4] : '',
+      };
+    }).toList();
+  }
+
+  Future<void> removeAccount(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> accounts = prefs.getStringList(_keyRememberedAccounts) ?? [];
+    accounts.removeWhere((a) => a.startsWith('$id|'));
+    await prefs.setStringList(_keyRememberedAccounts, accounts);
   }
 
   Future<void> setRememberedRole(String role) async {
@@ -458,5 +600,33 @@ class AuthService {
       // If there's an error, return null to default to onboarding
       return null;
     }
+  }
+
+  Future<void> refugeeLogout() async {
+    await logout();
+  }
+
+  // Set Profile Picture
+  Future<void> setProfilePicture(String userId, String imageUrl) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Save locally
+      await prefs.setString('profile_picture_$userId', imageUrl);
+      
+      // Save to Firestore
+      await DatabaseService.instance.createUserProfile({
+        'uid': userId,
+        'profilePicture': imageUrl,
+      });
+    } catch (e) {
+      print('DEBUG: setProfilePicture error: $e');
+    }
+  }
+
+  // Get Profile Picture
+  Future<String?> getProfilePicture(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('profile_picture_$userId');
   }
 }

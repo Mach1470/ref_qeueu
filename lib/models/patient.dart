@@ -7,7 +7,8 @@ class Patient {
   final bool emergency;
   final String status;
   final String? photoUrl;
-  final String? prescription; // NEW
+  final String? prescription;
+  final String? prescriptionText;
 
   Patient({
     required this.id,
@@ -19,5 +20,6 @@ class Patient {
     required this.status,
     this.photoUrl,
     this.prescription,
+    this.prescriptionText,
   });
 }
