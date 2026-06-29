@@ -1,6 +1,4 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:ref_qeueu/services/auth_service.dart';
@@ -21,7 +19,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
       id: 'refugee',
       title: 'Refugee',
       subtitle: 'Access healthcare',
-      route: '/production_phone_login_refugee',
+      route: '/auth/refugee_login',
       faIcon: FontAwesomeIcons.personShelter,
       gradientColors: [Color(0xFF0072BC), Color(0xFF003D7A)],
     ),
@@ -122,21 +120,17 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                 ),
               ),
 
-              // ─── WELCOME GLASS CARD ───
+              // ─── WELCOME CARD ───
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                    child: Container(
+                child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: const Color(0xFF0D2045),
                         borderRadius: BorderRadius.circular(24),
                         border:
-                            Border.all(color: Colors.white.withOpacity(0.15)),
+                            Border.all(color: Colors.white.withOpacity(0.12)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,8 +167,6 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                         ],
                       ),
                     ),
-                  ),
-                ),
               ),
 
               const SizedBox(height: 32),
@@ -338,15 +330,11 @@ class _PremiumRoleCardState extends State<_PremiumRoleCard> {
       child: AnimatedScale(
         scale: _pressed ? 0.95 : 1.0,
         duration: const Duration(milliseconds: 120),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
+        child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: const Color(0xFF0D2045),
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white.withOpacity(0.15)),
+                border: Border.all(color: Colors.white.withOpacity(0.12)),
               ),
               child: Padding(
                 padding:
@@ -449,9 +437,7 @@ class _PremiumRoleCardState extends State<_PremiumRoleCard> {
                 ),
               ),
             ),
-          ),
         ),
-      ),
     );
   }
 }

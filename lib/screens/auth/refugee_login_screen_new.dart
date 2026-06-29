@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ref_qeueu/services/auth_service.dart';
 
@@ -11,74 +12,105 @@ class RefugeeLoginScreenNew extends StatefulWidget {
 
 class _RefugeeLoginScreenNewState extends State<RefugeeLoginScreenNew> {
   bool _isLoading = false;
-  List<Map<String, String>> _rememberedAccounts = [];
+  bool _obscurePassword = true;
+
+  final _emailCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
 
   @override
-  void initState() {
-    super.initState();
-    _checkRememberedAccounts();
+  void dispose() {
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
+    super.dispose();
   }
 
-  Future<void> _checkRememberedAccounts() async {
-    final accounts = await AuthService().getRememberedAccounts();
-    if (mounted) setState(() => _rememberedAccounts = accounts);
-  }
-
-  Future<void> _handleSocialLogin(String provider) async {
+  Future<void> _handleGoogle() async {
     setState(() => _isLoading = true);
-    String? error;
     try {
-      if (provider == 'Google') {
-        error = await AuthService().signInWithGoogle();
-      } else if (provider == 'Apple') {
-        error = await AuthService().signInWithApple();
-      }
+      final error = await AuthService().signInWithGoogle();
       if (mounted) {
         if (error == null) {
           Navigator.pushReplacementNamed(context, '/refugee_home');
         } else {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(error)));
+          _showError(error);
         }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Login failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _handleBiometricLogin() async {
+  Future<void> _handleApple() async {
     setState(() => _isLoading = true);
-    final success = await AuthService().authenticateWithBiometrics();
-    if (mounted) {
-      setState(() => _isLoading = false);
-      if (success) {
-        Navigator.pushReplacementNamed(context, '/refugee_home');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Biometric authentication failed or cancelled')),
-        );
+    try {
+      final error = await AuthService().signInWithApple();
+      if (mounted) {
+        if (error == null) {
+          Navigator.pushReplacementNamed(context, '/refugee_home');
+        } else {
+          _showError(error);
+        }
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _handleDemo() async {
+    setState(() => _isLoading = true);
+    try {
+      final error = await AuthService().signInAsDemo();
+      if (mounted) {
+        if (error == null) {
+          Navigator.pushReplacementNamed(context, '/refugee_home');
+        } else {
+          _showError(error);
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleEmailSignIn() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+    try {
+      final error = await AuthService().signInWithEmailOrId(
+        idOrEmail: _emailCtrl.text.trim(),
+        password: _passwordCtrl.text,
+        role: 'refugee',
+      );
+      if (mounted) {
+        if (error == null) {
+          Navigator.pushReplacementNamed(context, '/refugee_home');
+        } else {
+          _showError(error);
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
   }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final safeTop = MediaQuery.of(context).padding.top;
-    final blueH = size.height * 0.44;
-    final cardTop = size.height * 0.34;
+    final blueH = size.height * 0.40;
+    final cardTop = size.height * 0.30;
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // ── UNHCR Blue top area ──
+          // ── Blue top panel ──
           Positioned(
             top: 0,
             left: 0,
@@ -95,7 +127,7 @@ class _RefugeeLoginScreenNewState extends State<RefugeeLoginScreenNew> {
             ),
           ),
 
-          // ── Refugee illustration ──
+          // ── Illustration ──
           Positioned(
             top: safeTop + 54,
             left: 48,
@@ -128,14 +160,14 @@ class _RefugeeLoginScreenNewState extends State<RefugeeLoginScreenNew> {
               child: SafeArea(
                 top: false,
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(28, 28, 28, 0),
+                  padding: const EdgeInsets.fromLTRB(28, 28, 28, 28),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Welcome Back!',
                         style: GoogleFonts.poppins(
-                          fontSize: 26,
+                          fontSize: 24,
                           fontWeight: FontWeight.w800,
                           color: const Color(0xFF001F47),
                           height: 1.2,
@@ -145,27 +177,36 @@ class _RefugeeLoginScreenNewState extends State<RefugeeLoginScreenNew> {
                       Text(
                         'Sign in to access your health profile and queue.',
                         style: GoogleFonts.dmSans(
-                          fontSize: 15,
+                          fontSize: 14,
                           color: const Color(0xFF5A7A8A),
                           height: 1.5,
                         ),
                       ),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 24),
 
-                      // Primary: Phone Number
-                      _PrimaryButton(
-                        icon: Icons.phone_android_rounded,
-                        label: 'Continue with Phone Number',
-                        onPressed: _isLoading
-                            ? null
-                            : () => Navigator.pushReplacementNamed(
-                                context,
-                                '/production_phone_login_refugee'),
+                      // ── Google ──
+                      _SocialButton(
+                        faIcon: FontAwesomeIcons.google,
+                        label: 'Continue with Google',
+                        backgroundColor: const Color(0xFF0072BC),
+                        foregroundColor: Colors.white,
+                        onPressed: _isLoading ? null : _handleGoogle,
                       ),
 
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 12),
 
-                      // Divider
+                      // ── Apple ──
+                      _SocialButton(
+                        faIcon: FontAwesomeIcons.apple,
+                        label: 'Continue with Apple',
+                        backgroundColor: const Color(0xFF1C1C1E),
+                        foregroundColor: Colors.white,
+                        onPressed: _isLoading ? null : _handleApple,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // ── OR divider ──
                       Row(children: [
                         Expanded(child: Divider(color: Colors.grey.shade200)),
                         Padding(
@@ -183,39 +224,76 @@ class _RefugeeLoginScreenNewState extends State<RefugeeLoginScreenNew> {
                         Expanded(child: Divider(color: Colors.grey.shade200)),
                       ]),
 
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
 
-                      // Google
-                      _SecondaryButton(
-                        icon: Icons.g_mobiledata_rounded,
-                        label: 'Continue with Google',
-                        onPressed: _isLoading
-                            ? null
-                            : () => _handleSocialLogin('Google'),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Biometric
-                      _SecondaryButton(
-                        icon: Icons.fingerprint_rounded,
-                        label: 'Use Fingerprint / Face ID',
-                        onPressed: _isLoading ? null : _handleBiometricLogin,
-                      ),
-
-                      if (_rememberedAccounts.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        _SecondaryButton(
-                          icon: Icons.switch_account_rounded,
-                          label: 'Switch to Saved Account',
-                          onPressed: () => Navigator.pushNamed(
-                              context, '/account_selector'),
+                      // ── Email / Password form ──
+                      Form(
+                        key: _formKey,
+                        child: Column(
+                          children: [
+                            _InputField(
+                              controller: _emailCtrl,
+                              hint: 'Email or Individual ID',
+                              icon: Icons.person_outline_rounded,
+                              keyboardType: TextInputType.emailAddress,
+                              validator: (v) =>
+                                  (v == null || v.trim().isEmpty)
+                                      ? 'Required'
+                                      : null,
+                            ),
+                            const SizedBox(height: 12),
+                            _InputField(
+                              controller: _passwordCtrl,
+                              hint: 'Password',
+                              icon: Icons.lock_outline_rounded,
+                              obscure: _obscurePassword,
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off_rounded
+                                      : Icons.visibility_rounded,
+                                  color: const Color(0xFFADBCC8),
+                                  size: 20,
+                                ),
+                                onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword),
+                              ),
+                              validator: (v) =>
+                                  (v == null || v.length < 6)
+                                      ? 'Min 6 characters'
+                                      : null,
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
 
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 16),
 
-                      // Register link
+                      // ── Sign In button ──
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _handleEmailSignIn,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0072BC),
+                            foregroundColor: Colors.white,
+                            elevation: 4,
+                            shadowColor: const Color(0x440072BC),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(25)),
+                          ),
+                          child: Text(
+                            'Sign In',
+                            style: GoogleFonts.poppins(
+                                fontSize: 15, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // ── Register link ──
                       Center(
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -242,7 +320,32 @@ class _RefugeeLoginScreenNewState extends State<RefugeeLoginScreenNew> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 28),
+
+                      const SizedBox(height: 20),
+
+                      // ── Demo access ──
+                      Center(
+                        child: GestureDetector(
+                          onTap: _isLoading ? null : _handleDemo,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 10),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                  color: const Color(0xFFE0EAF0)),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'Try Demo  →',
+                              style: GoogleFonts.dmSans(
+                                color: const Color(0xFF5A7A8A),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -250,25 +353,34 @@ class _RefugeeLoginScreenNewState extends State<RefugeeLoginScreenNew> {
             ),
           ),
 
-          // ── Back button ──
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                    border:
-                        Border.all(color: Colors.white.withOpacity(0.35)),
-                  ),
-                  child: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white,
-                    size: 18,
+          // ── Back button (Positioned to fix Stack sizing) ──
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: Colors.white.withOpacity(0.35)),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -277,10 +389,12 @@ class _RefugeeLoginScreenNewState extends State<RefugeeLoginScreenNew> {
 
           // ── Loading overlay ──
           if (_isLoading)
-            Container(
-              color: Colors.black.withOpacity(0.35),
-              child: const Center(
-                child: CircularProgressIndicator(color: Color(0xFF0072BC)),
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.35),
+                child: const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF0072BC)),
+                ),
               ),
             ),
         ],
@@ -289,71 +403,113 @@ class _RefugeeLoginScreenNewState extends State<RefugeeLoginScreenNew> {
   }
 }
 
-// ── Large filled pill button (primary CTA) ──
-class _PrimaryButton extends StatelessWidget {
-  final IconData icon;
+// ── Social auth button ──
+class _SocialButton extends StatelessWidget {
+  final FaIconData faIcon;
   final String label;
+  final Color backgroundColor;
+  final Color foregroundColor;
   final VoidCallback? onPressed;
 
-  const _PrimaryButton(
-      {required this.icon, required this.label, this.onPressed});
+  const _SocialButton({
+    required this.faIcon,
+    required this.label,
+    required this.backgroundColor,
+    required this.foregroundColor,
+    this.onPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 58,
-      child: ElevatedButton.icon(
+      height: 48,
+      child: ElevatedButton(
         onPressed: onPressed,
-        icon: Icon(icon, size: 22),
-        label: Text(
-          label,
-          style: GoogleFonts.poppins(
-              fontSize: 16, fontWeight: FontWeight.w600),
-        ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF0072BC),
-          foregroundColor: Colors.white,
-          elevation: 6,
-          shadowColor: const Color(0x660072BC),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(29)),
+          backgroundColor: backgroundColor,
+          foregroundColor: foregroundColor,
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            FaIcon(faIcon, size: 16, color: foregroundColor),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                  fontSize: 14, fontWeight: FontWeight.w600, color: foregroundColor),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-// ── Light outlined button (secondary option) ──
-class _SecondaryButton extends StatelessWidget {
+// ── Text input field ──
+class _InputField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
   final IconData icon;
-  final String label;
-  final VoidCallback? onPressed;
+  final bool obscure;
+  final Widget? suffixIcon;
+  final TextInputType keyboardType;
+  final String? Function(String?)? validator;
 
-  const _SecondaryButton(
-      {required this.icon, required this.label, this.onPressed});
+  const _InputField({
+    required this.controller,
+    required this.hint,
+    required this.icon,
+    this.obscure = false,
+    this.suffixIcon,
+    this.keyboardType = TextInputType.text,
+    this.validator,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 20, color: const Color(0xFF0072BC)),
-        label: Text(
-          label,
-          style: GoogleFonts.dmSans(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF001F47),
-          ),
+    return TextFormField(
+      controller: controller,
+      obscureText: obscure,
+      keyboardType: keyboardType,
+      validator: validator,
+      style: GoogleFonts.dmSans(fontSize: 15, color: const Color(0xFF001F47)),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle:
+            GoogleFonts.dmSans(fontSize: 15, color: const Color(0xFFADBCC8)),
+        prefixIcon: Icon(icon, color: const Color(0xFFADBCC8), size: 20),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: const Color(0xFFF5F8FB),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
         ),
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Color(0xFFD0E4F4), width: 1.5),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(27)),
-          backgroundColor: const Color(0xFFF8FBFE),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide:
+              const BorderSide(color: Color(0xFFE0EAF0), width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide:
+              const BorderSide(color: Color(0xFF0072BC), width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide:
+              const BorderSide(color: Colors.redAccent, width: 1),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide:
+              const BorderSide(color: Colors.redAccent, width: 1.5),
         ),
       ),
     );

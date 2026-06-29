@@ -42,6 +42,8 @@ import 'screens/chw/chw_triage_screen.dart';
 
 import 'screens/map_screen.dart';
 import 'screens/refugee/profile_screen.dart';
+import 'screens/refugee/edit_profile_screen.dart';
+import 'screens/refugee/visit_history_screen.dart';
 import 'screens/location_based_facility_selection_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -181,6 +183,8 @@ class MyQueueApp extends StatelessWidget {
             const FamilyRegistrationScreen(),
         '/refugee/join_queue': (context) => const JoinQueueDashboard(),
         '/profile': (context) => const ProfileScreen(),
+        '/refugee/visit_history': (context) => const VisitHistoryScreen(),
+        '/refugee/edit_profile': (context) => const EditProfileScreen(),
         '/auth_lock': (context) => AuthLockScreen(
           onAuthenticated: () {
             Navigator.pushReplacementNamed(context, '/refugee_home');

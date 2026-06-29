@@ -37,59 +37,54 @@ class AuthService {
     }
   }
 
-  // Login with email/id with timeouts
+  // Sign in with email address or individual ID + password
   Future<String?> signInWithEmailOrId(
       {required String idOrEmail,
       required String password,
       String? role}) async {
     try {
-      await Future.delayed(const Duration(seconds: 1))
-          .timeout(const Duration(seconds: 5));
+      // If not an email address, build a synthetic email from the individual ID
+      final email = idOrEmail.contains('@')
+          ? idOrEmail
+          : '${idOrEmail.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')}@refugee.myqueue.app';
 
-      // demo: password 'password' works
-      if (password == 'password') {
-        final prefs = await SharedPreferences.getInstance()
-            .timeout(const Duration(seconds: 5));
+      final cred = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password)
+          .timeout(const Duration(seconds: 15));
+
+      if (cred.user != null) {
+        final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(_keyIsLoggedIn, true);
-        await prefs.setString(_keyUserEmail, idOrEmail);
-        if (role != null) {
-          await prefs.setString(_keyUserRole, role);
-        }
-        
-        // Remember account for multi-account selector
+        await prefs.setString(_keyUserEmail, email);
+        await prefs.setString(_keyUserRole, role ?? 'refugee');
+        await prefs.setString(_keyRememberedRole, role ?? 'refugee');
         await rememberAccount(
-          id: idOrEmail,
-          name: idOrEmail.split('@')[0], // Extract name from email or use id
-          role: role ?? 'user',
-          email: idOrEmail.contains('@') ? idOrEmail : null,
+          id: cred.user!.uid,
+          name: cred.user!.displayName ?? idOrEmail.split('@')[0],
+          role: role ?? 'refugee',
+          email: email,
         );
-
-        // Log event and start session - wrap in try-catch and timeout to prevent hang
-        try {
-          final actorKey = idOrEmail.replaceAll('.', '_');
-          await DatabaseService.instance.logEvent({
-            'type': 'signin',
-            'actor': actorKey,
-            'role': role ?? 'user',
-          }).timeout(const Duration(seconds: 10));
-
-          final sessionId = await DatabaseService.instance.startSession(
-              actorKey,
-              {'method': 'email'}).timeout(const Duration(seconds: 10));
-
-          if (sessionId != null) {
-            await prefs.setString(_keySessionId, sessionId);
-          }
-        } catch (dbError) {
-          print('DEBUG: Non-fatal DB error during signin: $dbError');
-          // Still return null (success) because local auth state is saved
-        }
         return null;
       }
-      return 'Invalid credentials (demo). Use password = "password".';
+      return 'Login failed. Please try again.';
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'user-not-found':
+          return 'No account found. Please register first.';
+        case 'wrong-password':
+        case 'invalid-credential':
+          return 'Incorrect password. Please try again.';
+        case 'invalid-email':
+          return 'Invalid email address.';
+        case 'too-many-requests':
+          return 'Too many attempts. Please try again later.';
+        case 'user-disabled':
+          return 'This account has been disabled.';
+        default:
+          return 'Login failed: ${e.message ?? e.code}';
+      }
     } catch (e) {
-      print('DEBUG: signInWithEmailOrId error: $e');
-      return 'Login failed: ${e.toString()}';
+      return 'Login failed: $e';
     }
   }
 
@@ -478,6 +473,10 @@ class AuthService {
   // Logout - clear all saved data
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
+    // Sign out from Firebase Auth
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (_) {}
     // End session in Realtime DB if present
     try {
       final role = prefs.getString(_keyUserRole);
@@ -701,7 +700,7 @@ class AuthService {
       );
 
       final UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
-      
+
       if (userCredential.user != null) {
         await saveRefugeeLogin(
           userCredential.user!.uid,
@@ -713,6 +712,25 @@ class AuthService {
     } catch (e) {
       print('DEBUG: signInWithApple error: $e');
       return 'Apple Sign-In Error: $e';
+    }
+  }
+
+  Future<String?> signInAsDemo() async {
+    try {
+      final UserCredential cred =
+          await FirebaseAuth.instance.signInAnonymously();
+      if (cred.user != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('is_logged_in', true);
+        await prefs.setString('user_role', 'refugee');
+        await prefs.setString('user_name', 'Demo User');
+        await prefs.setString('last_route', '/refugee_home');
+        return null;
+      }
+      return 'Could not start demo session';
+    } catch (e) {
+      print('DEBUG: signInAsDemo error: $e');
+      return 'Demo sign-in failed: $e';
     }
   }
 }

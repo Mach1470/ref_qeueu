@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:ref_qeueu/widgets/glass_widgets.dart';
-import 'package:ref_qeueu/widgets/safe_scaffold.dart';
+import '../../services/auth_service.dart';
 import '../../services/security_service.dart';
 import 'access_pin_screen.dart';
 import 'push_alerts_screen.dart';
@@ -17,370 +15,356 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _biometricsEnabled = false;
-  bool _pinEnabled = false;
-  bool _hasBiometrics = false;
+  bool _biometricEnabled = false;
 
   @override
   void initState() {
     super.initState();
-    _loadSecurity();
+    _loadPrefs();
   }
 
-  Future<void> _loadSecurity() async {
-    final s = SecurityService.instance;
-    final bio = await s.isBiometricsEnabled();
-    final pin = await s.isPinEnabled();
-    final has = await s.canCheckBiometrics();
-    if (mounted) setState(() {
-      _biometricsEnabled = bio;
-      _pinEnabled = pin;
-      _hasBiometrics = has;
-    });
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _biometricEnabled = prefs.getBool('biometric_enabled') ?? false;
+      });
+    }
   }
 
-  void _toggleBiometrics(bool value) async {
-    if (value) {
+  Future<void> _toggleBiometric(bool val) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (val) {
       final ok = await SecurityService.instance.authenticate();
-      if (ok) {
-        await SecurityService.instance.setBiometricsEnabled(true);
-        if (mounted) setState(() => _biometricsEnabled = true);
-      }
-    } else {
-      await SecurityService.instance.setBiometricsEnabled(false);
-      if (mounted) setState(() => _biometricsEnabled = false);
+      if (!ok) return;
+    }
+    await prefs.setBool('biometric_enabled', val);
+    if (mounted) setState(() => _biometricEnabled = val);
+  }
+
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Sign out',
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w700, color: const Color(0xFF001F47))),
+        content: Text('Are you sure you want to sign out?',
+            style: GoogleFonts.dmSans(color: const Color(0xFF5A7A8A))),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.dmSans()),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Sign out',
+                style: GoogleFonts.dmSans(
+                    color: Colors.red, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    await AuthService().logout();
+    if (mounted) {
+      Navigator.pushNamedAndRemoveUntil(
+          context, '/role_selection', (_) => false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return SafeScaffold(
-      extendBodyBehindAppBar: true,
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF001530), Color(0xFF002147), Color(0xFF003D7A)],
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+        leading: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFE0EAF0)),
+            ),
+            child: const Icon(Icons.chevron_left_rounded,
+                color: Color(0xFF001F47), size: 24),
           ),
         ),
+        title: Text('Settings',
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w700,
+                fontSize: 17,
+                color: const Color(0xFF001F47))),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // App bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 56, 20, 12),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.07),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white.withOpacity(0.1)),
-                      ),
-                      child: const Icon(Icons.arrow_back_ios_new_rounded,
-                          color: Colors.white70, size: 16),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Text('Settings',
-                      style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700)),
-                ],
-              ),
+            const SizedBox(height: 8),
+
+            // ── Account ──
+            _SectionHeader('Account'),
+            _SettingsTile(
+              icon: Icons.language_rounded,
+              label: 'Change Language',
+              onTap: () => _showComingSoon('Language settings'),
+            ),
+            _Divider(),
+            _SettingsTile(
+              icon: Icons.lock_outline_rounded,
+              label: 'Change Password',
+              onTap: () => _showComingSoon('Change password'),
+            ),
+            _Divider(),
+            _SettingsTile(
+              icon: Icons.email_outlined,
+              label: 'Change Email',
+              onTap: () => _showComingSoon('Change email'),
             ),
 
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
+            const SizedBox(height: 24),
 
-                    // ── Security ──
-                    _sectionLabel('SECURITY & PRIVACY'),
-                    const SizedBox(height: 12),
-                    GlassCard(
-                      padding: EdgeInsets.zero,
-                      child: Column(
-                        children: [
-                          _toggleTile(
-                            icon: Icons.fingerprint_rounded,
-                            title: 'Biometric Lock',
-                            subtitle: _hasBiometrics
-                                ? 'Use fingerprint or face ID to unlock the app'
-                                : 'Biometrics not available on this device',
-                            value: _biometricsEnabled,
-                            onChanged: _hasBiometrics ? _toggleBiometrics : null,
-                            color: const Color(0xFF82C4E8),
-                          ),
-                          _div(),
-                          _navTile(
-                            icon: Icons.lock_outline_rounded,
-                            title: 'Access PIN',
-                            subtitle: _pinEnabled
-                                ? 'A 4-digit PIN is set — tap to change or remove'
-                                : 'Set a 4-digit PIN as a backup to biometrics',
-                            color: const Color(0xFF60A5FA),
-                            onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const AccessPinScreen()))
-                                .then((_) => _loadSecurity()),
-                          ),
-                          _div(),
-                          _navTile(
-                            icon: Icons.switch_account_rounded,
-                            title: 'Manage Accounts',
-                            subtitle: 'Switch between saved profiles on this device',
-                            color: const Color(0xFFA78BFA),
-                            onTap: () => Navigator.pushNamed(context, '/account_selector'),
-                          ),
-                        ],
-                      ),
-                    ).animate().fadeIn(delay: 100.ms),
-                    const SizedBox(height: 28),
+            // ── Security ──
+            _SectionHeader('Security & Privacy'),
+            _SwitchTile(
+              icon: Icons.fingerprint_rounded,
+              label: 'Biometric Lock',
+              subtitle: 'Use fingerprint or face to lock the app',
+              value: _biometricEnabled,
+              onChanged: _toggleBiometric,
+            ),
+            _Divider(),
+            _SettingsTile(
+              icon: Icons.pin_outlined,
+              label: 'Access PIN',
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AccessPinScreen())),
+            ),
 
-                    // ── Notifications ──
-                    _sectionLabel('NOTIFICATIONS'),
-                    const SizedBox(height: 12),
-                    GlassCard(
-                      padding: EdgeInsets.zero,
-                      child: _navTile(
-                        icon: Icons.notifications_none_rounded,
-                        title: 'Alert Preferences',
-                        subtitle:
-                            'Manage queue updates, proximity alerts, and safety notices',
-                        color: const Color(0xFFFBBF24),
-                        onTap: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const PushAlertsScreen())),
-                      ),
-                    ).animate().fadeIn(delay: 200.ms),
-                    const SizedBox(height: 28),
+            const SizedBox(height: 24),
 
-                    // ── Data & Connectivity ──
-                    _sectionLabel('DATA & CONNECTIVITY'),
-                    const SizedBox(height: 12),
-                    GlassCard(
-                      padding: EdgeInsets.zero,
-                      child: Column(
-                        children: [
-                          _infoTile(
-                            icon: Icons.wifi_off_rounded,
-                            title: 'Offline Mode',
-                            subtitle:
-                                'Queue requests and updates are saved locally and synced automatically when you reconnect',
-                            color: const Color(0xFF34D399),
-                            badge: 'Active',
-                          ),
-                          _div(),
-                          _infoTile(
-                            icon: Icons.lock_person_outlined,
-                            title: 'Encrypted Local Storage',
-                            subtitle:
-                                'Your health data, family information, and ID are stored securely on this device using AES-256 encryption',
-                            color: const Color(0xFF60A5FA),
-                            badge: 'On',
-                          ),
-                          _div(),
-                          _navTile(
-                            icon: Icons.sync_rounded,
-                            title: 'Sync Data Now',
-                            subtitle:
-                                'Manually push any pending offline queue requests to the server',
-                            color: const Color(0xFF82C4E8),
-                            onTap: () async {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('Syncing data…'),
-                                    duration: Duration(seconds: 2)));
-                            },
-                          ),
-                        ],
-                      ),
-                    ).animate().fadeIn(delay: 300.ms),
-                    const SizedBox(height: 28),
+            // ── Notifications ──
+            _SectionHeader('Notifications'),
+            _SettingsTile(
+              icon: Icons.notifications_none_rounded,
+              label: 'Alert Preferences',
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const PushAlertsScreen())),
+            ),
 
-                    // ── App Preferences ──
-                    _sectionLabel('APP PREFERENCES'),
-                    const SizedBox(height: 12),
-                    GlassCard(
-                      padding: EdgeInsets.zero,
-                      child: Column(
-                        children: [
-                          _infoTile(
-                            icon: Icons.language_rounded,
-                            title: 'Language',
-                            subtitle: 'English (more languages coming soon)',
-                            color: const Color(0xFFFBBF24),
-                            badge: 'EN',
-                          ),
-                          _div(),
-                          _infoTile(
-                            icon: Icons.accessibility_new_rounded,
-                            title: 'Accessibility',
-                            subtitle: 'High-contrast mode and larger text support',
-                            color: const Color(0xFFA78BFA),
-                            badge: 'Auto',
-                          ),
-                        ],
-                      ),
-                    ).animate().fadeIn(delay: 400.ms),
+            const SizedBox(height: 24),
 
-                    const SizedBox(height: 60),
-                  ],
-                ),
+            // ── Legal ──
+            _SectionHeader('Legal'),
+            _SettingsTile(
+              icon: Icons.privacy_tip_outlined,
+              label: 'Privacy Policy',
+              onTap: () => _showComingSoon('Privacy Policy'),
+            ),
+            _Divider(),
+            _SettingsTile(
+              icon: Icons.description_outlined,
+              label: 'Terms and Conditions',
+              onTap: () => _showComingSoon('Terms and Conditions'),
+            ),
+
+            const SizedBox(height: 24),
+
+            // ── Account Actions ──
+            _SectionHeader('Account Actions'),
+            _SettingsTile(
+              icon: Icons.logout_rounded,
+              label: 'Sign out',
+              isDestructive: true,
+              showChevron: false,
+              onTap: _logout,
+            ),
+            _Divider(),
+            _SettingsTile(
+              icon: Icons.delete_outline_rounded,
+              label: 'Delete Account',
+              isDestructive: true,
+              showChevron: false,
+              onTap: _showDeleteConfirmation,
+            ),
+
+            const SizedBox(height: 32),
+
+            Center(
+              child: Text(
+                'MyQueue v1.0.0',
+                style: GoogleFonts.dmSans(
+                    fontSize: 12, color: const Color(0xFFADBCC8)),
               ),
             ),
+            const SizedBox(height: 24),
           ],
         ),
       ),
     );
   }
 
-  Widget _sectionLabel(String text) => Text(
-        text,
-        style: GoogleFonts.dmSans(
-            color: const Color(0xFF82C4E8),
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.8),
-      );
-
-  Widget _div() =>
-      const Divider(color: Colors.white10, height: 1, indent: 20, endIndent: 20);
-
-  Widget _toggleTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool value,
-    required Function(bool)? onChanged,
-    required Color color,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      child: Row(
-        children: [
-          _iconBox(icon, color),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title,
-                  style: GoogleFonts.dmSans(
-                      color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 2),
-              Text(subtitle,
-                  style: GoogleFonts.dmSans(color: Colors.white38, fontSize: 11, height: 1.4)),
-            ]),
-          ),
-          const SizedBox(width: 8),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: const Color(0xFFFCBE11),
-            activeTrackColor: const Color(0xFFFCBE11).withOpacity(0.3),
-            inactiveThumbColor: Colors.white24,
-            inactiveTrackColor: Colors.white10,
-          ),
-        ],
+  void _showComingSoon(String label) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$label — coming soon'),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
-  Widget _navTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Row(
-            children: [
-              _iconBox(icon, color),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(title,
-                      style: GoogleFonts.dmSans(
-                          color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 2),
-                  Text(subtitle,
-                      style:
-                          GoogleFonts.dmSans(color: Colors.white38, fontSize: 11, height: 1.4)),
-                ]),
-              ),
-              const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white24, size: 13),
-            ],
+  Future<void> _showDeleteConfirmation() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete Account',
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w700, color: Colors.red)),
+        content: Text(
+          'This will permanently delete your account and all data. This cannot be undone.',
+          style: GoogleFonts.dmSans(color: const Color(0xFF5A7A8A)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.dmSans()),
           ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Delete',
+                style: GoogleFonts.dmSans(
+                    color: Colors.red, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    _showComingSoon('Account deletion');
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String text;
+  const _SectionHeader(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+      child: Text(text,
+          style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+              color: const Color(0xFF001F47))),
+    );
+  }
+}
+
+class _SettingsTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isDestructive;
+  final bool showChevron;
+  final VoidCallback onTap;
+
+  const _SettingsTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isDestructive = false,
+    this.showChevron = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor =
+        isDestructive ? Colors.red : const Color(0xFF1E293B);
+    final iconColor =
+        isDestructive ? Colors.red : const Color(0xFF0072BC);
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, color: iconColor, size: 20),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(label,
+                  style: GoogleFonts.dmSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: textColor)),
+            ),
+            if (showChevron)
+              const Icon(Icons.chevron_right_rounded,
+                  color: Color(0xFFADBCC8), size: 20),
+          ],
         ),
       ),
     );
   }
+}
 
-  Widget _infoTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required String badge,
-  }) {
+class _SwitchTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _SwitchTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _iconBox(icon, color),
-          const SizedBox(width: 14),
+          Icon(icon, color: const Color(0xFF0072BC), size: 20),
+          const SizedBox(width: 16),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title,
-                  style: GoogleFonts.dmSans(
-                      color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 2),
-              Text(subtitle,
-                  style:
-                      GoogleFonts.dmSans(color: Colors.white38, fontSize: 11, height: 1.4)),
-            ]),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: GoogleFonts.dmSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF1E293B))),
+                Text(subtitle,
+                    style: GoogleFonts.dmSans(
+                        fontSize: 12, color: const Color(0xFF5A7A8A))),
+              ],
             ),
-            child: Text(badge,
-                style: GoogleFonts.dmSans(
-                    color: color, fontSize: 10, fontWeight: FontWeight.w700)),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: const Color(0xFF0072BC),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _iconBox(IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(9),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Icon(icon, color: color, size: 18),
-    );
-  }
+class _Divider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => const Divider(
+      height: 1, indent: 20, endIndent: 20, color: Color(0xFFEEF2F6));
 }

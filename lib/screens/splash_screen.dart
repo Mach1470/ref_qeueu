@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -64,8 +65,6 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _decideNavigation() async {
     final prefs = await SharedPreferences.getInstance();
     final hasSeen = prefs.getBool('has_seen_onboarding') ?? false;
-    final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
-    final rememberedRole = prefs.getString('remembered_role');
 
     if (!mounted) return;
 
@@ -74,7 +73,14 @@ class _SplashScreenState extends State<SplashScreen>
       return;
     }
 
-    if (isLoggedIn) {
+    // Firebase Auth persists sessions across app restarts — check it first
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser != null) {
+      // Sync local state to match Firebase session
+      await prefs.setBool('is_logged_in', true);
+      if (prefs.getString('user_role') == null) {
+        await prefs.setString('user_role', 'refugee');
+      }
       final security = SecurityService.instance;
       if (await security.isBiometricsEnabled() || await security.isPinEnabled()) {
         if (mounted) {
@@ -84,25 +90,37 @@ class _SplashScreenState extends State<SplashScreen>
       }
       final route = await AuthService().getSavedRoute();
       if (!mounted) return;
+      Navigator.pushReplacementNamed(context, route ?? '/refugee_home');
+      return;
+    }
+
+    // No Firebase session — check local flag and remembered role
+    final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
+    final rememberedRole = prefs.getString('remembered_role');
+
+    if (isLoggedIn) {
+      final route = await AuthService().getSavedRoute();
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, route ?? '/role_selection');
       return;
     }
 
+    // Return user to their role's login screen
     if (rememberedRole != null) {
       switch (rememberedRole) {
         case 'refugee':
-          Navigator.pushReplacementNamed(context, '/auth/refugee_login');
+          if (mounted) Navigator.pushReplacementNamed(context, '/auth/refugee_login');
           return;
         case 'ambulance':
-          Navigator.pushReplacementNamed(context, '/ambulance_request');
+          if (mounted) Navigator.pushReplacementNamed(context, '/ambulance_request');
           return;
         default:
-          Navigator.pushReplacementNamed(context, '/role_selection');
+          if (mounted) Navigator.pushReplacementNamed(context, '/role_selection');
           return;
       }
     }
 
-    Navigator.pushReplacementNamed(context, '/role_selection');
+    if (mounted) Navigator.pushReplacementNamed(context, '/role_selection');
   }
 
   @override

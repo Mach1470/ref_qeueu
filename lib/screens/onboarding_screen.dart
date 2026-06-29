@@ -284,7 +284,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
 
           // ── MyQueue logo row (over blue area) ──
-          SafeArea(
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
             bottom: false,
             child: Padding(
               padding:
@@ -331,6 +335,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ],
               ),
             ),
+          ),
           ),
         ],
       ),
