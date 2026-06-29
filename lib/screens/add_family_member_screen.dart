@@ -34,14 +34,14 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.dark(
-              primary: Color(0xFF6366F1),
+              primary: Color(0xFFFCBE11),
               onPrimary: Colors.white,
-              surface: Color(0xFF1E1B4B),
+              surface: Color(0xFF002147),
               onSurface: Colors.white,
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF818CF8)),
+                  foregroundColor: const Color(0xFF82C4E8)),
             ),
           ),
           child: child!,
@@ -113,9 +113,9 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF0F172A), // Slate 900
-              Color(0xFF1E1B4B), // Indigo 950
-              Color(0xFF1E1B4B), // Indigo 950
+              Color(0xFF001530), // Slate 900
+              Color(0xFF002147), // Indigo 950
+              Color(0xFF002147), // Indigo 950
             ],
           ),
         ),
@@ -130,7 +130,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
                 height: 250,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF4F46E5).withOpacity(0.1),
+                  color: const Color(0xFF0060A9).withOpacity(0.1),
                 ),
               )
                   .animate(
@@ -156,8 +156,8 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
                         children: [
                           Text(
                             'Family Circle',
-                            style: GoogleFonts.dmSans(
-                              color: const Color(0xFF818CF8),
+                            style: GoogleFonts.merriweather(
+                              color: const Color(0xFF82C4E8),
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.2,
@@ -165,7 +165,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
                           ),
                           Text(
                             'Add Member',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.merriweather(
                               color: Colors.white,
                               fontSize: 26,
                               fontWeight: FontWeight.bold,
@@ -224,7 +224,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
                                         const EdgeInsets.only(top: 8, left: 4),
                                     child: Text(
                                       'Optional for minors (<18)',
-                                      style: GoogleFonts.dmSans(
+                                      style: GoogleFonts.merriweather(
                                         color: const Color(0xFF4ADE80),
                                         fontSize: 12,
                                         fontWeight: FontWeight.w500,
@@ -254,20 +254,20 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF6366F1).withOpacity(0.05),
+        color: const Color(0xFFFCBE11).withOpacity(0.05),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.2)),
+        border: Border.all(color: const Color(0xFFFCBE11).withOpacity(0.2)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withOpacity(0.15),
+              color: const Color(0xFFFCBE11).withOpacity(0.15),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.info_outline_rounded,
-                color: Color(0xFF818CF8), size: 24),
+                color: Color(0xFF82C4E8), size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -276,7 +276,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
               children: [
                 Text(
                   'Connected Identities',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.merriweather(
                     color: Colors.white,
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -284,7 +284,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
                 ),
                 Text(
                   'Members added here will be linked to your primary account for unified access.',
-                  style: GoogleFonts.dmSans(
+                  style: GoogleFonts.merriweather(
                     color: Colors.white60,
                     fontSize: 13,
                   ),
@@ -310,7 +310,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
       children: [
         Text(
           label,
-          style: GoogleFonts.dmSans(
+          style: GoogleFonts.merriweather(
             color: Colors.white54,
             fontSize: 11,
             fontWeight: FontWeight.bold,
@@ -321,13 +321,13 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
-          style: GoogleFonts.poppins(color: Colors.white, fontSize: 15),
+          style: GoogleFonts.merriweather(color: Colors.white, fontSize: 15),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.white.withOpacity(0.2)),
             filled: true,
             fillColor: Colors.white.withOpacity(0.04),
-            prefixIcon: Icon(icon, color: const Color(0xFF818CF8), size: 20),
+            prefixIcon: Icon(icon, color: const Color(0xFF82C4E8), size: 20),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
             border: OutlineInputBorder(
@@ -341,7 +341,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
               borderSide:
-                  const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                  const BorderSide(color: Color(0xFFFCBE11), width: 1.5),
             ),
             errorStyle: const TextStyle(color: Color(0xFFFB7185)),
           ),
@@ -362,7 +362,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
       children: [
         Text(
           'DATE OF BIRTH',
-          style: GoogleFonts.dmSans(
+          style: GoogleFonts.merriweather(
             color: Colors.white54,
             fontSize: 11,
             fontWeight: FontWeight.bold,
@@ -383,13 +383,13 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
             child: Row(
               children: [
                 const Icon(Icons.calendar_today_rounded,
-                    color: Color(0xFF818CF8), size: 18),
+                    color: Color(0xFF82C4E8), size: 18),
                 const SizedBox(width: 12),
                 Text(
                   _dobController.text.isEmpty
                       ? 'Select birth date'
                       : _dobController.text,
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.merriweather(
                     color: _dobController.text.isEmpty
                         ? Colors.white.withOpacity(0.2)
                         : Colors.white,
@@ -415,7 +415,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.3),
+            color: const Color(0xFFFCBE11).withOpacity(0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -424,7 +424,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
       child: ElevatedButton(
         onPressed: _isLoading ? null : _handleSave,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF6366F1),
+          backgroundColor: const Color(0xFFFCBE11),
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
@@ -440,7 +440,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
               )
             : Text(
                 'Register Member',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.merriweather(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),

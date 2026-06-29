@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../widgets/mock_map_view.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../widgets/production_map_view.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,7 +23,7 @@ class _RefugeeAmbulanceRequestScreenState
     extends State<RefugeeAmbulanceRequestScreen> with TickerProviderStateMixin {
   static const Color premiumRed = Color(0xFFE11D48);
   static const Color successGreen = Color(0xFF10B981);
-  static const Color deepBackground = Color(0xFF0F172A);
+  static const Color deepBackground = Color(0xFF001530);
 
   double? _currentLat;
   double? _currentLng;
@@ -177,7 +178,7 @@ class _RefugeeAmbulanceRequestScreenState
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
+                  colors: [Color(0xFF001530), Color(0xFF002147)],
                 ),
               ),
               child: Center(
@@ -200,28 +201,13 @@ class _RefugeeAmbulanceRequestScreenState
             )
           : Stack(
               children: [
-                // Map Background with dark vignette
-                MockMapView(
-                  showRoute: _status == 'accepted' || _status == 'arrived',
-                  primaryColor: premiumRed,
-                  markers: [
-                    if (_currentLat != null && _currentLng != null)
-                      const MockMarker(
-                        x: 180,
-                        y: 350,
-                        icon: Icons.person_pin_circle,
-                        color: Color(0xFF386BB8),
-                        label: 'You',
-                      ),
-                    if (_status == 'accepted' || _status == 'arrived')
-                      const MockMarker(
-                        x: 50,
-                        y: 100,
-                        icon: Icons.local_hospital,
-                        color: premiumRed,
-                        label: 'Ambulance',
-                      ),
-                  ],
+                // Google Map Background
+                ProductionMapView(
+                  title: 'Ambulance Request',
+                  showUserLocation: true,
+                  initialCenter: _currentLat != null && _currentLng != null
+                      ? LatLng(_currentLat!, _currentLng!)
+                      : null,
                 ),
 
                 // Depth & Overlay
@@ -374,8 +360,8 @@ class _RefugeeAmbulanceRequestScreenState
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              const Color(0xFF1E1B4B).withOpacity(0.95),
-              const Color(0xFF0F172A).withOpacity(0.98),
+              const Color(0xFF002147).withOpacity(0.95),
+              const Color(0xFF001530).withOpacity(0.98),
             ],
           ),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
@@ -440,7 +426,7 @@ class _RefugeeAmbulanceRequestScreenState
         Text(
           'Initiate immediate response protocol. Verified medical units are on standby in your sector.',
           textAlign: TextAlign.center,
-          style: GoogleFonts.dmSans(
+          style: GoogleFonts.merriweather(
               color: Colors.white60, fontSize: 14, height: 1.5),
         ),
         const SizedBox(height: 40),
@@ -551,7 +537,7 @@ class _RefugeeAmbulanceRequestScreenState
         const SizedBox(height: 12),
         Text(
           'Broadcasting your location to nearest units',
-          style: GoogleFonts.dmSans(color: Colors.white38, fontSize: 13),
+          style: GoogleFonts.merriweather(color: Colors.white38, fontSize: 13),
         ),
         const SizedBox(height: 48),
         _buildCancelButton(),
@@ -589,7 +575,7 @@ class _RefugeeAmbulanceRequestScreenState
                   children: [
                     Text(
                       _driverName ?? 'Rescue Team',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.merriweather(
                           color: Colors.white,
                           fontSize: 20,
                           fontWeight: FontWeight.bold),
@@ -610,7 +596,7 @@ class _RefugeeAmbulanceRequestScreenState
                 children: [
                   Text(
                     _status == 'arrived' ? 'ARRIVED' : 'ETA',
-                    style: GoogleFonts.dmSans(
+                    style: GoogleFonts.merriweather(
                         color: Colors.white38,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,

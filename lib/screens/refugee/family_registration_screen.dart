@@ -4,6 +4,7 @@ import 'package:ref_qeueu/widgets/glass_widgets.dart';
 import 'package:ref_qeueu/widgets/safe_scaffold.dart';
 import 'package:ref_qeueu/services/auth_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FamilyRegistrationScreen extends StatefulWidget {
   const FamilyRegistrationScreen({super.key});
@@ -25,6 +26,7 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
   List<Map<String, String>> _familyMembers = [];
   String _myId = 'Loading...';
   String _myName = 'User';
+  String _selectedRelationship = 'Spouse';
 
   @override
   void initState() {
@@ -34,13 +36,18 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
 
   Future<void> _loadData() async {
     final members = await _authService.getFamilyMembers();
-    final id = await _authService.getUserId() ?? 'ID-000000';
-    final name = (await _authService.getUserPhone()) ?? 'John Doe';
-    setState(() {
-      _familyMembers = members;
-      _myId = id;
-      _myName = name;
-    });
+    final id = await _authService.getUserId() ?? '';
+    final prefs = await SharedPreferences.getInstance();
+    final name = prefs.getString('user_name') ??
+        prefs.getString('user_phone') ??
+        'Account Holder';
+    if (mounted) {
+      setState(() {
+        _familyMembers = members;
+        _myId = id;
+        _myName = name;
+      });
+    }
   }
 
   @override
@@ -70,6 +77,7 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
         'phone': phone,
         'email': _emailController.text.trim(),
         'dob': _dobController.text.trim(),
+        'relationship': _selectedRelationship,
       };
 
       await _authService.addFamilyMember(member);
@@ -114,9 +122,9 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF0F172A), // Slate 900
-              Color(0xFF1E1B4B), // Indigo 950
-              Color(0xFF1E1B4B), // Indigo 950
+              Color(0xFF001530), // Slate 900
+              Color(0xFF002147), // Indigo 950
+              Color(0xFF002147), // Indigo 950
             ],
           ),
         ),
@@ -131,7 +139,7 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
                 height: 400,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF4F46E5).withOpacity(0.12),
+                  color: const Color(0xFF0060A9).withOpacity(0.12),
                 ),
               ).animate().fadeIn(duration: 1.seconds).scale(),
             ),
@@ -164,8 +172,8 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
                         children: [
                           Text(
                             'Digital Identity',
-                            style: GoogleFonts.dmSans(
-                              color: const Color(0xFF818CF8),
+                            style: GoogleFonts.merriweather(
+                              color: const Color(0xFF82C4E8),
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.2,
@@ -173,7 +181,7 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
                           ),
                           Text(
                             'ID Dashboard',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.merriweather(
                               color: Colors.white,
                               fontSize: 26,
                               fontWeight: FontWeight.bold,
@@ -204,7 +212,7 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
                           children: [
                             Text(
                               'Verified Dependents',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.merriweather(
                                 color: Colors.white,
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -221,8 +229,8 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
                               ),
                               child: Text(
                                 '${_familyMembers.length} Members',
-                                style: GoogleFonts.dmSans(
-                                  color: const Color(0xFF818CF8),
+                                style: GoogleFonts.merriweather(
+                                  color: const Color(0xFF82C4E8),
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -235,7 +243,7 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
                         const SizedBox(height: 40),
                         Text(
                           'Add New Member',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.merriweather(
                             color: Colors.white,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -244,7 +252,7 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
                         const SizedBox(height: 4),
                         Text(
                           'Register family members within your digital circle.',
-                          style: GoogleFonts.dmSans(
+                          style: GoogleFonts.merriweather(
                               color: Colors.white54, fontSize: 13),
                         ),
                         const SizedBox(height: 24),
@@ -270,7 +278,7 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.15),
+            color: const Color(0xFFFCBE11).withOpacity(0.15),
             blurRadius: 40,
             offset: const Offset(0, 20),
           ),
@@ -287,9 +295,9 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    const Color(0xFF6366F1).withOpacity(0.8),
-                    const Color(0xFF4F46E5),
-                    const Color(0xFF312E81),
+                    const Color(0xFFFCBE11).withOpacity(0.8),
+                    const Color(0xFF0060A9),
+                    const Color(0xFF003D7A),
                   ],
                 ),
               ),
@@ -325,7 +333,7 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
                         children: [
                           Text(
                             'UNHCR DIGITAL CERTIFICATE',
-                            style: GoogleFonts.dmSans(
+                            style: GoogleFonts.merriweather(
                               color: Colors.white.withOpacity(0.6),
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -337,7 +345,7 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
                             children: [
                               Text(
                                 'REFUGEE STATUS',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.merriweather(
                                   color: Colors.white,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
@@ -364,7 +372,7 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
                   const Spacer(),
                   Text(
                     _myName.toUpperCase(),
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.merriweather(
                       color: Colors.white,
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -376,12 +384,12 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
                     children: [
                       Text(
                         'ID: ',
-                        style: GoogleFonts.dmSans(
+                        style: GoogleFonts.merriweather(
                             color: Colors.white.withOpacity(0.5), fontSize: 16),
                       ),
                       Text(
                         _myId,
-                        style: GoogleFonts.dmSans(
+                        style: GoogleFonts.merriweather(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -419,7 +427,7 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
             const SizedBox(height: 16),
             Text(
               'No dependents found',
-              style: GoogleFonts.dmSans(color: Colors.white38, fontSize: 14),
+              style: GoogleFonts.merriweather(color: Colors.white38, fontSize: 14),
             ),
           ],
         ),
@@ -445,30 +453,46 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
                 children: [
                   CircleAvatar(
                     radius: 24,
-                    backgroundColor: const Color(0xFF6366F1).withOpacity(0.2),
+                    backgroundColor: const Color(0xFFFCBE11).withOpacity(0.2),
                     child: Text(
                       m['name']?[0].toUpperCase() ?? '?',
-                      style: GoogleFonts.poppins(
-                          color: const Color(0xFF818CF8),
+                      style: GoogleFonts.merriweather(
+                          color: const Color(0xFF82C4E8),
                           fontWeight: FontWeight.bold),
                     ),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     m['name'] ?? 'Unknown',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.merriweather(
                         color: Colors.white,
                         fontSize: 14,
                         fontWeight: FontWeight.w600),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  Text(
-                    m['id'] ?? '',
-                    style:
-                        GoogleFonts.dmSans(color: Colors.white38, fontSize: 11),
-                    maxLines: 1,
-                  ),
+                  if ((m['relationship'] ?? '').isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFCBE11).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        m['relationship']!,
+                        style: GoogleFonts.merriweather(
+                            color: const Color(0xFF82C4E8), fontSize: 10),
+                      ),
+                    )
+                  else
+                    Text(
+                      m['id'] ?? '',
+                      style: GoogleFonts.merriweather(
+                          color: Colors.white38, fontSize: 11),
+                      maxLines: 1,
+                    ),
                 ],
               ),
             ),
@@ -510,6 +534,49 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
               hint: 'Optional Contact',
               keyboardType: TextInputType.phone,
             ),
+            const SizedBox(height: 20),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'RELATIONSHIP',
+                  style: GoogleFonts.merriweather(
+                    color: Colors.white54,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedRelationship,
+                      dropdownColor: const Color(0xFF002147),
+                      isExpanded: true,
+                      icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                          color: Colors.white54),
+                      items: ['Spouse', 'Child', 'Parent', 'Sibling', 'Other']
+                          .map((r) => DropdownMenuItem(
+                                value: r,
+                                child: Text(r,
+                                    style: GoogleFonts.merriweather(
+                                        color: Colors.white, fontSize: 14)),
+                              ))
+                          .toList(),
+                      onChanged: (v) =>
+                          setState(() => _selectedRelationship = v!),
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
@@ -519,7 +586,7 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF6366F1).withOpacity(0.3),
+                      color: const Color(0xFFFCBE11).withOpacity(0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -528,7 +595,7 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _registerMember,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6366F1),
+                    backgroundColor: const Color(0xFFFCBE11),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20)),
@@ -544,7 +611,7 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
                             const SizedBox(width: 12),
                             Text(
                               'Add to Circle',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.merriweather(
                                   fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                           ],
@@ -570,7 +637,7 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
       children: [
         Text(
           label,
-          style: GoogleFonts.dmSans(
+          style: GoogleFonts.merriweather(
             color: Colors.white54,
             fontSize: 11,
             fontWeight: FontWeight.bold,
@@ -581,11 +648,11 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
-          style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
+          style: GoogleFonts.merriweather(color: Colors.white, fontSize: 16),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: GoogleFonts.dmSans(color: Colors.white24),
-            prefixIcon: Icon(icon, color: const Color(0xFF818CF8), size: 22),
+            hintStyle: GoogleFonts.merriweather(color: Colors.white24),
+            prefixIcon: Icon(icon, color: const Color(0xFF82C4E8), size: 22),
             filled: true,
             fillColor: Colors.white.withOpacity(0.04),
             contentPadding:
@@ -601,7 +668,7 @@ class _FamilyRegistrationScreenState extends State<FamilyRegistrationScreen> {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
               borderSide:
-                  const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                  const BorderSide(color: Color(0xFFFCBE11), width: 1.5),
             ),
           ),
           validator: (v) =>

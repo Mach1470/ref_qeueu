@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:ref_qeueu/services/auth_service.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
@@ -14,26 +15,31 @@ class RoleSelectionScreen extends StatefulWidget {
 class _RoleSelectionScreenState extends State<RoleSelectionScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
-  bool _isDemoLoading = false;
 
   final List<_Role> _roles = const [
     _Role(
       id: 'refugee',
       title: 'Refugee',
       subtitle: 'Access healthcare',
-      asset: 'assets/illustrations/refugee_final.png',
-      route: '/auth/refugee_login',
-      icon: Icons.people_alt_rounded,
-      gradientColors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+      route: '/production_phone_login_refugee',
+      faIcon: FontAwesomeIcons.personShelter,
+      gradientColors: [Color(0xFF0072BC), Color(0xFF003D7A)],
     ),
     _Role(
       id: 'ambulance',
       title: 'Ambulance',
       subtitle: 'Emergency services',
-      asset: 'assets/illustrations/ambulance_final.png',
-      route: '/ambulance_request',
-      icon: Icons.emergency_rounded,
-      gradientColors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+      route: '/production_phone_login_ambulance',
+      faIcon: FontAwesomeIcons.truckMedical,
+      gradientColors: [Color(0xFFEF4444), Color(0xFFB91C1C)],
+    ),
+    _Role(
+      id: 'chw',
+      title: 'Health Worker',
+      subtitle: 'Manage triage',
+      route: '/production_phone_login_chw',
+      faIcon: FontAwesomeIcons.userNurse,
+      gradientColors: [Color(0xFF065F46), Color(0xFF10B981)],
     ),
   ];
 
@@ -57,47 +63,15 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: kDebugMode
-          ? FloatingActionButton.extended(
-              backgroundColor: Colors.white.withOpacity(0.15),
-              onPressed: _isDemoLoading
-                  ? null
-                  : () async {
-                      setState(() => _isDemoLoading = true);
-                      try {
-                        await AuthService().saveRefugeeLogin('+000000000',
-                            displayName: 'Stephen Demo',
-                            demoId: 'demo-000',
-                            queuePosition: 5);
-                        await Future.delayed(const Duration(milliseconds: 300));
-                      } catch (_) {}
-                      if (mounted) {
-                        setState(() => _isDemoLoading = false);
-                        Navigator.pushNamed(context, '/refugee_home');
-                      }
-                    },
-              icon: _isDemoLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.person, color: Colors.white),
-              label: Text(
-                _isDemoLoading ? 'Loading...' : 'Refugee Demo',
-                style: const TextStyle(color: Colors.white),
-              ),
-            )
-          : null,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF1E3A8A), // Deep Blue
-              Color(0xFF2563EB), // Vivid Blue
-              Color(0xFF1E40AF), // Royal Blue
+              Color(0xFF001F47), // UNHCR Navy
+              Color(0xFF003D7A), // UNHCR Deep Blue
+              Color(0xFF0060A9), // UNHCR Primary Blue
             ],
             stops: [0.0, 0.5, 1.0],
           ),
@@ -316,18 +290,16 @@ class _Role {
   final String id;
   final String title;
   final String subtitle;
-  final String asset;
   final String route;
-  final IconData icon;
+  final FaIconData faIcon;
   final List<Color> gradientColors;
 
   const _Role({
     required this.id,
     required this.title,
     required this.subtitle,
-    required this.asset,
     required this.route,
-    required this.icon,
+    required this.faIcon,
     required this.gradientColors,
   });
 }
@@ -382,36 +354,34 @@ class _PremiumRoleCardState extends State<_PremiumRoleCard> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Role image — circular
+                    // Role icon — gradient circle with Font Awesome icon
                     Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: widget.role.gradientColors.first
-                                .withOpacity(0.4),
-                            width: 0.5, // Thinned out border
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: widget.role.gradientColors.first
-                                  .withOpacity(0.25),
-                              blurRadius: 16,
-                              spreadRadius: 2,
+                      child: Center(
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: widget.role.gradientColors,
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                          ],
-                        ),
-                        child: ClipOval(
-                          child: Transform.scale(
-                            scale: 1.15,
-                            child: Image.asset(
-                              widget.role.asset,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Icon(
-                                widget.role.icon,
-                                size: 48,
-                                color: Colors.white30,
+                            boxShadow: [
+                              BoxShadow(
+                                color: widget.role.gradientColors.first
+                                    .withOpacity(0.45),
+                                blurRadius: 24,
+                                spreadRadius: 4,
+                                offset: const Offset(0, 6),
                               ),
+                            ],
+                          ),
+                          child: Center(
+                            child: FaIcon(
+                              widget.role.faIcon,
+                              color: Colors.white,
+                              size: 42,
                             ),
                           ),
                         ),

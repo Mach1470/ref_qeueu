@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/theme_service.dart';
+import 'services/offline_sync_service.dart';
+import 'models/sync_queue_entry.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
@@ -12,7 +15,8 @@ import 'screens/splash_screen.dart';
 // Auth Screens
 import 'screens/auth/refugee_login_screen_new.dart';
 import 'screens/auth/refugee_signup_screen.dart';
-import 'screens/auth/otp_verification_screen.dart';
+import 'screens/auth/production_phone_login_screen.dart';
+import 'screens/auth/production_otp_verification_screen.dart';
 
 // Dashboard Screens
 import 'screens/refugee_home_screen_new.dart';
@@ -31,8 +35,14 @@ import 'screens/refugee/hospital_selection_screen.dart';
 import 'screens/ambulance/ambulance_driver_dashboard.dart';
 import 'screens/ambulance/ambulance_navigation_screen.dart';
 
+// CHW Screens
+import 'screens/chw/chw_login_screen.dart';
+import 'screens/chw/chw_dashboard.dart';
+import 'screens/chw/chw_triage_screen.dart';
+
 import 'screens/map_screen.dart';
 import 'screens/refugee/profile_screen.dart';
+import 'screens/location_based_facility_selection_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 Future<void> main() async {
@@ -43,13 +53,29 @@ Future<void> main() async {
   final themeService = ThemeService();
   await themeService.load();
 
-  // No longer clearing session on every boot for production-like performance.
-  // try {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   ...
-  // } catch (e) { ... }
+  final offlineSyncService = OfflineSyncService(
+    syncHandler: (entry) async {
+      try {
+        final docRef = FirebaseFirestore.instance.collection(entry.collection).doc(entry.documentId);
+        if (entry.operation == SyncOperation.create || entry.operation == SyncOperation.update) {
+          await docRef.set(entry.payload, SetOptions(merge: true));
+        } else if (entry.operation == SyncOperation.delete) {
+          await docRef.delete();
+        }
+        return true;
+      } catch (e) {
+        debugPrint('Sync failed for entry ${entry.id}: $e');
+        return false;
+      }
+    },
+  );
+  await offlineSyncService.initialize();
+
   runApp(MultiProvider(
-    providers: [ChangeNotifierProvider.value(value: themeService)],
+    providers: [
+      ChangeNotifierProvider.value(value: themeService),
+      ChangeNotifierProvider.value(value: offlineSyncService),
+    ],
     child: const MyQueueApp(),
   ));
 }
@@ -64,41 +90,53 @@ class MyQueueApp extends StatelessWidget {
     const Color primaryBlue = Color(0xFF386BB8);
     const Color surfaceBlue = Color(0xFFF8FAFC);
 
+    // When the high-contrast theme is enabled, use it for both light and dark
+    // — the user's brightness preference is still honored via [themeMode].
+    final lightTheme = themeSvc.highContrast
+        ? themeSvc.buildHighContrastTheme(Brightness.light)
+        : ThemeData(
+            useMaterial3: true,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: primaryBlue,
+              primary: primaryBlue,
+              surface: Colors.white,
+            ),
+            scaffoldBackgroundColor: surfaceBlue,
+            textTheme: GoogleFonts.merriweatherTextTheme(
+              Theme.of(context).textTheme,
+            ).copyWith(
+              displayLarge: GoogleFonts.merriweather(fontWeight: FontWeight.w900),
+              displayMedium: GoogleFonts.merriweather(fontWeight: FontWeight.w900),
+              displaySmall: GoogleFonts.merriweather(fontWeight: FontWeight.w700),
+              headlineMedium: GoogleFonts.merriweather(fontWeight: FontWeight.w700),
+            ),
+          );
+
+    final darkTheme = themeSvc.highContrast
+        ? themeSvc.buildHighContrastTheme(Brightness.dark)
+        : ThemeData(
+            brightness: Brightness.dark,
+            useMaterial3: true,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: primaryBlue,
+              brightness: Brightness.dark,
+              primary: primaryBlue,
+            ),
+            textTheme: GoogleFonts.merriweatherTextTheme(
+              ThemeData.dark().textTheme,
+            ).copyWith(
+              displayLarge: GoogleFonts.merriweather(fontWeight: FontWeight.w900),
+              displayMedium: GoogleFonts.merriweather(fontWeight: FontWeight.w900),
+              displaySmall: GoogleFonts.merriweather(fontWeight: FontWeight.w700),
+              headlineMedium: GoogleFonts.merriweather(fontWeight: FontWeight.w700),
+            ),
+          );
+
     return MaterialApp(
       title: 'MyQueue Mobile',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: primaryBlue,
-          primary: primaryBlue,
-          surface: Colors.white,
-        ),
-        scaffoldBackgroundColor: surfaceBlue,
-        textTheme:
-            GoogleFonts.dmSansTextTheme(Theme.of(context).textTheme).copyWith(
-          displayLarge: GoogleFonts.poppins(fontWeight: FontWeight.w800),
-          displayMedium: GoogleFonts.poppins(fontWeight: FontWeight.w800),
-          displaySmall: GoogleFonts.poppins(fontWeight: FontWeight.w700),
-          headlineMedium: GoogleFonts.poppins(fontWeight: FontWeight.w700),
-        ),
-      ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: primaryBlue,
-          brightness: Brightness.dark,
-          primary: primaryBlue,
-        ),
-        textTheme:
-            GoogleFonts.dmSansTextTheme(ThemeData.dark().textTheme).copyWith(
-          displayLarge: GoogleFonts.poppins(fontWeight: FontWeight.w800),
-          displayMedium: GoogleFonts.poppins(fontWeight: FontWeight.w800),
-          displaySmall: GoogleFonts.poppins(fontWeight: FontWeight.w700),
-          headlineMedium: GoogleFonts.poppins(fontWeight: FontWeight.w700),
-        ),
-      ),
+      theme: lightTheme,
+      darkTheme: darkTheme,
       themeMode: themeSvc.mode,
       home: const SplashScreen(),
       routes: {
@@ -112,10 +150,12 @@ class MyQueueApp extends StatelessWidget {
               as Map<String, dynamic>?;
           final String verificationId = args?['verificationId'] ?? 'unknown_id';
           final String phoneNumber = args?['phoneNumber'] ?? '';
+          final String role = args?['role'] ?? 'refugee';
 
-          return OtpVerificationScreen(
+          return ProductionOtpVerificationScreen(
             verificationId: verificationId,
             phoneNumber: phoneNumber,
+            role: role,
           );
         },
         '/join_queue_selection': (context) => const JoinQueueSelectionScreen(),
@@ -147,6 +187,26 @@ class MyQueueApp extends StatelessWidget {
           },
         ),
         '/account_selector': (context) => const AccountSelectorScreen(),
+        '/chw_login': (context) => const CHWLoginScreen(),
+        '/chw_dashboard': (context) => const CHWDashboard(),
+        '/chw_triage': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments
+              as Map<String, dynamic>?;
+          return CHWTriageScreen(
+            patientName: args?['patientName'] as String?,
+          );
+        },
+        // Production Authentication Routes
+        '/production_phone_login_refugee': (context) =>
+            const ProductionPhoneLoginScreen(role: 'refugee'),
+        '/production_phone_login_ambulance': (context) =>
+            const ProductionPhoneLoginScreen(role: 'ambulance_driver'),
+        '/production_phone_login_chw': (context) =>
+            const ProductionPhoneLoginScreen(role: 'chw'),
+        
+        // Location-Based Facility Assignment
+        '/facility_selection': (context) =>
+            const LocationBasedFacilitySelectionScreen(),
       },
     );
   }

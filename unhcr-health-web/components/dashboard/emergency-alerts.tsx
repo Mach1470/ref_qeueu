@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { ref, onValue, off } from 'firebase/database';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Siren, Clock, MapPin } from 'lucide-react';
+import { Siren, Clock, MapPin, AlertCircle } from 'lucide-react';
 
 export interface EmergencyRequest {
     id: string;
@@ -47,50 +47,47 @@ export default function EmergencyAlerts() {
     if (requests.length === 0) return null;
 
     return (
-        <div className="space-y-4">
-            <h3 className="text-sm font-black text-rose-600 uppercase tracking-widest flex items-center gap-2">
-                <Siren size={16} className="animate-pulse" />
-                Live Emergency Alerts ({requests.length})
-            </h3>
-
-            <div className="grid gap-3">
-                <AnimatePresence mode="popLayout">
-                    {requests.map((req) => (
-                        <motion.div
-                            key={req.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className={`p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${req.status === 'searching'
-                                ? 'bg-rose-50 border-rose-100 shadow-lg shadow-rose-100'
-                                : 'bg-amber-50 border-amber-100'
-                                }`}
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${req.status === 'searching' ? 'bg-rose-500 text-white' : 'bg-amber-500 text-white'
-                                    }`}>
-                                    <Siren size={20} />
+        <div className="bg-white border-b border-stone-200 shadow-sm w-full">
+            <AnimatePresence mode="popLayout">
+                {requests.map((req) => (
+                    <motion.div
+                        key={req.id}
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className={`px-8 py-3 flex items-center justify-between border-b last:border-0 transition-colors ${req.status === 'searching'
+                            ? 'bg-rose-50 border-rose-100'
+                            : 'bg-amber-50 border-amber-100'
+                            }`}
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className={`p-2 rounded-full ${req.status === 'searching' ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'
+                                }`}>
+                                {req.status === 'searching' ? <Siren size={18} className="animate-pulse" /> : <AlertCircle size={18} />}
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-3">
+                                    <p className="font-bold text-stone-900">{req.patientName}</p>
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest ${req.status === 'searching' ? 'bg-rose-200 text-rose-700' : 'bg-amber-200 text-amber-800'
+                                        }`}>
+                                        {req.status === 'searching' ? 'Critical Emergency' : 'Urgent Transfer'}
+                                    </span>
                                 </div>
-                                <div>
-                                    <p className="font-bold text-slate-900">{req.patientName}</p>
-                                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-                                        <MapPin size={10} /> {req.locationName}
-                                        <span className="mx-1">•</span>
-                                        <Clock size={10} /> {new Date(req.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </div>
+                                <div className="flex items-center gap-3 text-xs font-medium text-stone-500 mt-1">
+                                    <span className="flex items-center gap-1.5"><MapPin size={12} /> {req.locationName}</span>
+                                    <span className="flex items-center gap-1.5"><Clock size={12} /> {new Date(req.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                 </div>
                             </div>
+                        </div>
 
-                            <div className="text-right">
-                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${req.status === 'searching' ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'
-                                    }`}>
-                                    {req.status}
-                                </span>
-                            </div>
-                        </motion.div>
-                    ))}
-                </AnimatePresence>
-            </div>
+                        <div>
+                            <button className={`btn-primary py-2 px-4 text-sm ${req.status === 'searching' ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20' : 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20'}`}>
+                                View Details
+                            </button>
+                        </div>
+                    </motion.div>
+                ))}
+            </AnimatePresence>
         </div>
     );
 }

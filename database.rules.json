@@ -1,53 +1,143 @@
 {
-    "rules": {
-        "active_queues": {
-            "$hospitalId": {
-                ".read": "auth != null",
-                "tickets": {
-                    ".read": "auth != null",
-                    "$ticketId": {
-                        ".write": "auth != null",
-                        ".validate": "newData.hasChildren(['queuedAt', 'status'])"
-                    }
-                },
-                "metrics": {
-                    ".read": "auth != null",
-                    ".write": "auth != null"
-                },
-                "archived": {
-                    ".read": "auth != null && (auth.token.role == 'super_admin' || auth.token.role == 'hospital_admin')",
-                    ".write": "auth != null"
-                }
-            }
+  "rules": {
+    // =========================================================================
+    // ROOT RULES - DEFAULT DENY (secure by default)
+    // =========================================================================
+    ".read": false,
+    ".write": false,
+    
+    // =========================================================================
+    // LIVE SESSIONS (for real-time status updates)
+    // =========================================================================
+    "sessions": {
+      "$sessionId": {
+        ".read": "auth != null && (data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'super_admin')",
+        ".write": "auth != null && (newData.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'super_admin')",
+        "userId": { ".validate": "newData.isString()" },
+        "status": { ".validate": "newData.val() === 'active' || newData.val() === 'idle' || newData.val() === 'offline'" },
+        "lastUpdate": { ".validate": "newData.isNumber()" }
+      }
+    },
+    
+    // =========================================================================
+    // LIVE QUEUE STATUS (for real-time queue updates)
+    // =========================================================================
+    "queue_status": {
+      "$facilityId": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() in ['doctor', 'pharmacy', 'lab', 'maternity', 'chw', 'hospital_admin', 'super_admin']",
+        "incoming": {
+          "value": { ".validate": "newData.isNumber()" }
         },
-        "userActivity": {
-            "$userId": {
-                ".read": "auth != null && (auth.uid == $userId || auth.token.role == 'super_admin')",
-                ".write": "auth != null && (auth.uid == $userId || auth.token.role == 'super_admin')",
-                "sessions": {
-                    "$sessionId": {
-                        ".validate": "newData.hasChildren(['loginAt'])"
-                    }
-                }
-            }
+        "pharmacy": {
+          "value": { ".validate": "newData.isNumber()" }
         },
-        "events": {
-            ".read": "auth != null && auth.token.role == 'super_admin'",
-            ".write": "auth != null",
-            "$eventId": {
-                ".validate": "newData.hasChildren(['type', 'timestamp'])"
-            }
+        "lab": {
+          "value": { ".validate": "newData.isNumber()" }
         },
-        "serviceLogs": {
-            "$service": {
-                ".read": "auth != null && (auth.token.role == 'super_admin' || auth.token.role == 'hospital_admin')",
-                ".write": "auth != null",
-                "$logId": {
-                    ".validate": "newData.hasChildren(['timestamp'])"
-                }
-            }
+        "maternity": {
+          "value": { ".validate": "newData.isNumber()" }
+        }
+      }
+    },
+    
+    // =========================================================================
+    // LIVE AMBULANCE TRACKING
+    // =========================================================================
+    "ambulance_tracking": {
+      "$ambulanceId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('ambulances').child($ambulanceId).child('driverId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() in ['hospital_admin', 'super_admin'])",
+        "latitude": { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90" },
+        "longitude": { ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180" },
+        "status": { ".validate": "newData.val() in ['available', 'responding', 'busy', 'offline']" },
+        "eta": { ".validate": "newData.isNumber()" },
+        "lastUpdate": { ".validate": "newData.isNumber()" }
+      }
+    },
+    
+    // =========================================================================
+    // LIVE CHW STATUS (Community Health Worker)
+    // =========================================================================
+    "chw_status": {
+      "$chwId": {
+        ".read": "auth != null && (data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() in ['hospital_admin', 'super_admin'])",
+        ".write": "auth != null && (newData.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() in ['hospital_admin', 'super_admin'])",
+        "userId": { ".validate": "newData.isString()" },
+        "status": { ".validate": "newData.val() in ['active', 'on_break', 'off_duty']" },
+        "patientsProcessed": { ".validate": "newData.isNumber()" },
+        "lastActivityTime": { ".validate": "newData.isNumber()" }
+      }
+    },
+    
+    // =========================================================================
+    // ACTIVE QUEUES (real-time queue status per facility)
+    // =========================================================================
+    "active_queues": {
+      "$facilityId": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() in ['hospital_admin', 'super_admin']",
+        "tickets": {
+          "$ticketId": {
+            ".validate": "newData.hasChildren(['queuedAt', 'status'])",
+            "queuedAt": { ".validate": "newData.isNumber()" },
+            "status": { ".validate": "newData.val() in ['waiting', 'in_progress', 'completed', 'cancelled']" },
+            "patientId": { ".validate": "newData.isString()" }
+          }
         },
-        "ambulance_locations": {
+        "metrics": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() in ['doctor', 'pharmacy', 'lab', 'maternity', 'chw', 'hospital_admin', 'super_admin']"
+        }
+      }
+    },
+    
+    // =========================================================================
+    // USER ACTIVITY TRACKING
+    // =========================================================================
+    "user_activity": {
+      "$userId": {
+        ".read": "auth != null && (auth.uid === $userId || root.child('users').child(auth.uid).child('role').val() === 'super_admin')",
+        ".write": "auth != null && (auth.uid === $userId || root.child('users').child(auth.uid).child('role').val() === 'super_admin')",
+        "lastLogin": { ".validate": "newData.isNumber()" },
+        "lastActivity": { ".validate": "newData.isNumber()" },
+        "deviceId": { ".validate": "newData.isString()" }
+      }
+    },
+    
+    // =========================================================================
+    // NOTIFICATIONS (for real-time push notifications)
+    // =========================================================================
+    "user_notifications": {
+      "$userId": {
+        ".read": "auth != null && (auth.uid === $userId || root.child('users').child(auth.uid).child('role').val() === 'super_admin')",
+        ".write": "auth != null && (auth.uid === $userId || root.child('users').child(auth.uid).child('role').val() === 'super_admin')",
+        "$notificationId": {
+          ".validate": "newData.hasChildren(['type', 'timestamp'])",
+          "type": { ".validate": "newData.isString()" },
+          "timestamp": { ".validate": "newData.isNumber()" },
+          "read": { ".validate": "newData.isBoolean()" },
+          "title": { ".validate": "newData.isString()" },
+          "body": { ".validate": "newData.isString()" }
+        }
+      }
+    },
+    
+    // =========================================================================
+    // AUDIT LOGS (for security and compliance)
+    // =========================================================================
+    "audit_logs": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'super_admin'",
+      "$logId": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['event', 'timestamp', 'userId'])",
+        "event": { ".validate": "newData.isString()" },
+        "timestamp": { ".validate": "newData.isNumber()" },
+        "userId": { ".validate": "newData.isString()" }
+      }
+    }
+  }
+}
             "$ambulanceId": {
                 ".read": "auth != null",
                 ".write": "auth != null && (auth.token.role == 'ambulance' || auth.token.role == 'super_admin')",

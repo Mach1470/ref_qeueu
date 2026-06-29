@@ -64,9 +64,9 @@ class _AmbulanceDriverLoginScreenState
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFF1E3A8A), // Deep Blue
-                  Color(0xFF312E81), // Indigo
-                  Color(0xFF4C1D95), // Deep Purple
+                  Color(0xFF001F47), // UNHCR Navy
+                  Color(0xFF003D7A), // UNHCR Deep Blue
+                  Color(0xFF0060A9), // UNHCR Primary Blue
                 ],
                 stops: [0.0, 0.5, 1.0],
               ),

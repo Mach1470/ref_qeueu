@@ -1,18 +1,21 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:ref_qeueu/widgets/glass_widgets.dart';
 import 'package:ref_qeueu/widgets/safe_scaffold.dart';
-import 'package:ref_qeueu/services/auth_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import 'digital_identity_screen.dart';
-import 'access_pin_screen.dart';
-import 'push_alerts_screen.dart';
-import 'support_screens.dart';
+import '../../services/auth_service.dart';
 import '../../services/storage_service.dart';
-import '../../services/security_service.dart';
+import 'digital_identity_screen.dart';
+import 'settings_screen.dart';
+import 'support_screens.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -23,109 +26,126 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   String? _userName;
+  String? _userPhone;
+  String? _refugeeId;
+  String? _campName;
+  String? _registrationDate;
+  String? _profileImageUrl;
   List<Map<String, String>> _familyMembers = [];
-  String? _profileImageUrl; // Added for profile image
-  final AuthService _authService = AuthService();
-  bool _biometricsEnabled = false;
-  bool _pinEnabled = false;
-  bool _hasBiometrics = false;
+  int _medicalVisits = 0;
+
+  final _auth = AuthService();
 
   @override
   void initState() {
     super.initState();
-    _loadProfileData();
-    _checkSecurityStatus();
+    _load();
   }
 
-  Future<void> _checkSecurityStatus() async {
-    final security = SecurityService.instance;
-    final bioEnabled = await security.isBiometricsEnabled();
-    final pinEnabled = await security.isPinEnabled();
-    final hasBio = await security.canCheckBiometrics();
-    
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
-        _biometricsEnabled = bioEnabled;
-        _pinEnabled = pinEnabled;
-        _hasBiometrics = hasBio;
+        _userName = prefs.getString('user_name') ?? prefs.getString('user_phone');
+        _userPhone = prefs.getString('user_phone');
+        _profileImageUrl = prefs.getString('profile_image_url');
+        _campName = prefs.getString('user_facility_name');
       });
     }
-  }
 
-  void _toggleBiometrics(bool value) async {
-    if (value) {
-      final success = await SecurityService.instance.authenticate();
-      if (success) {
-        await SecurityService.instance.setBiometricsEnabled(true);
-        setState(() => _biometricsEnabled = true);
+    final members = await _auth.getFamilyMembers();
+    if (mounted) setState(() => _familyMembers = members);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (doc.exists && mounted) {
+        final d = doc.data()!;
+        setState(() {
+          _userName = d['name']?.toString() ?? _userName;
+          _refugeeId = d['refugeeId']?.toString() ?? d['caseNumber']?.toString();
+          _campName = d['facilityName']?.toString() ?? _campName;
+          final ts = d['createdAt'];
+          if (ts is Timestamp) {
+            final dt = ts.toDate();
+            _registrationDate = '${dt.day}/${dt.month}/${dt.year}';
+          }
+        });
       }
-    } else {
-      await SecurityService.instance.setBiometricsEnabled(false);
-      setState(() => _biometricsEnabled = false);
-    }
+
+      final snap = await FirebaseDatabase.instance.ref('userActivity/${user.uid}/sessions').get();
+      if (mounted) setState(() => _medicalVisits = snap.children.length);
+    } catch (_) {}
   }
 
   Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 70, // Optimize for mobile
-    );
-
-    if (image != null) {
-      final uid = await _authService.getUserId();
-      if (uid == null) return;
-
-      // Show loading indicator
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Uploading profile picture...')),
-        );
-      }
-
-      try {
-        // Upload to Firebase Storage
-        final imageUrl = await StorageService.instance.uploadProfilePhoto(
-          userId: uid,
-          photoFile: File(image.path),
-        );
-
-        if (imageUrl != null) {
-          setState(() => _profileImageUrl = imageUrl);
-          await _authService.setProfilePicture(uid, imageUrl);
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Profile picture updated!')),
-            );
-          }
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Upload failed: $e')),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _loadProfileData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final auth = AuthService();
-    final name = prefs.getString('user_name');
-    final members = await auth.getFamilyMembers();
+    final image = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (image == null) return;
+    final uid = await _auth.getUserId();
+    if (uid == null) return;
 
     if (mounted) {
-      setState(() {
-        _userName = name;
-        _familyMembers = members;
-        _profileImageUrl = prefs.getString('profile_image_url');
-      });
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Uploading photo…')));
+    }
+    try {
+      final url = await StorageService.instance
+          .uploadProfilePhoto(userId: uid, photoFile: File(image.path));
+      if (url != null) {
+        setState(() => _profileImageUrl = url);
+        await _auth.setProfilePicture(uid, url);
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Photo updated')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+      }
     }
   }
 
-  // Removed _handleLogout as requested
+  void _confirmSignOut() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF002147),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Sign Out',
+            style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Text('You will need to log in again to use MyQueue.',
+            style: GoogleFonts.dmSans(color: Colors.white70, height: 1.5)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: GoogleFonts.dmSans(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await _auth.logout();
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('is_logged_in', false);
+              if (mounted) {
+                Navigator.pushNamedAndRemoveUntil(context, '/role_selection', (_) => false);
+              }
+            },
+            child: Text('Sign Out',
+                style: GoogleFonts.dmSans(
+                    color: const Color(0xFFEF4444), fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────
+  //  BUILD
+  // ──────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -138,174 +158,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF0F172A), // Slate 900
-              Color(0xFF1E1B4B), // Indigo 950
-              Color(0xFF312E81), // Indigo 900
-            ],
+            colors: [Color(0xFF001530), Color(0xFF002147), Color(0xFF003D7A)],
           ),
         ),
-        child: Stack(
+        child: Column(
           children: [
-            // Background Orbs
-            Positioned(
-              top: -100,
-              right: -50,
-              child: Container(
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF6366F1).withOpacity(0.12),
-                ),
-              ).animate().fadeIn(duration: 1.seconds).scale(),
-            ),
-
-            Column(
-              children: [
-                // Custom AppBar
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 60, 16, 20),
-                  child: Row(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: Colors.white.withOpacity(0.1)),
-                        ),
-                        child: IconButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                              color: Colors.white, size: 18),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Text(
-                        'Profile Settings',
-                        style: GoogleFonts.poppins(
+            // ── App Bar ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 56, 20, 12),
+              child: Row(
+                children: [
+                  _CircleBtn(
+                    icon: Icons.arrow_back_ios_new_rounded,
+                    onTap: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: 14),
+                  Text('My Profile',
+                      style: GoogleFonts.poppins(
                           color: Colors.white,
                           fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const Spacer(),
-                      // Removed _buildLogoutButton()
-                    ],
+                          fontWeight: FontWeight.w700)),
+                  const Spacer(),
+                  _CircleBtn(
+                    icon: Icons.settings_outlined,
+                    onTap: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const SettingsScreen())),
                   ),
+                ],
+              ),
+            ),
+
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
+                    _buildHero(),
+                    const SizedBox(height: 20),
+                    Center(child: _buildStatusBadge()),
+                    const SizedBox(height: 28),
+                    _buildStats(),
+                    const SizedBox(height: 32),
+
+                    _label('CASE DETAILS'),
+                    const SizedBox(height: 12),
+                    _buildCaseCard(),
+                    const SizedBox(height: 28),
+
+                    _label('REGISTERED HOUSEHOLD'),
+                    const SizedBox(height: 12),
+                    _buildHouseholdCard(),
+                    const SizedBox(height: 28),
+
+                    _label('DIGITAL IDENTITY'),
+                    const SizedBox(height: 12),
+                    _buildDigitalIdTile(),
+                    const SizedBox(height: 32),
+
+                    _label('SUPPORT & INFO'),
+                    const SizedBox(height: 12),
+                    _buildSupportCard(),
+                    const SizedBox(height: 32),
+
+                    _buildSignOutBtn(),
+                    const SizedBox(height: 60),
+                  ],
                 ),
-
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    physics: const BouncingScrollPhysics(),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 20),
-                        // Avatar Section
-                        _buildHeroProfile(),
-                        const SizedBox(height: 40),
-
-                        // Verification Row
-                        _buildVerificationBadge(),
-                        const SizedBox(height: 48),
-
-                        // Stats Grid
-                        _buildStatsGrid(),
-                        const SizedBox(height: 32),
-
-                        // User Info Card
-                        _buildUserInfoCard(),
-                        const SizedBox(height: 32),
-
-                        // Settings Sections
-                        _buildSettingsGroup(
-                          'Security & Privacy',
-                          [
-                            _buildSettingsTile(
-                                Icons.switch_account_rounded,
-                                'Manage Accounts',
-                                'Switch between existing profiles',
-                                () => Navigator.pushNamed(context, '/account_selector')),
-                             _buildSettingsTile(
-                                Icons.badge_rounded,
-                                'Digital Identity',
-                                'Manage UNHCR certificates',
-                                () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) =>
-                                            const DigitalIdentityScreen()))),
-                            _buildSecurityToggleTile(
-                                Icons.fingerprint_rounded,
-                                'Biometric Lock',
-                                'Fingerprint or Face ID',
-                                _biometricsEnabled,
-                                _hasBiometrics ? _toggleBiometrics : null),
-                            _buildSettingsTile(
-                                Icons.lock_outline_rounded,
-                                'Access PIN',
-                                _pinEnabled ? 'PIN Protected' : 'Secure your account',
-                                () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) =>
-                                            const AccessPinScreen())).then((_) => _checkSecurityStatus())),
-                            _buildSettingsTile(
-                                Icons.notifications_none_rounded,
-                                'Push Alerts',
-                                'Proximity & safety notifications',
-                                () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) =>
-                                            const PushAlertsScreen()))),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        // Replaced _buildSettingsGroup for 'Support' with direct Text and tiles
-                        Text(
-                          'Support & Info',
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white, // Assuming textMain is white
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildSettingsTile(
-                            Icons.help_outline_rounded,
-                            'Community Help',
-                            'FAQs and usage guides',
-                            () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) =>
-                                        const CommunityHelpScreen()))),
-                        _buildSettingsTile(
-                            Icons.contact_support_outlined,
-                            'Direct Support',
-                            'Contact humanitarian aid',
-                            () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) =>
-                                        const DirectSupportScreen()))),
-                        _buildSettingsTile(
-                            Icons.info_outline_rounded,
-                            'About MyQueue',
-                            'Version, terms and mission',
-                            () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const AboutAppScreen()))),
-                        const SizedBox(height: 60),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ],
         ),
@@ -313,309 +235,497 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Removed _buildLogoutButton widget
+  // ──────────────────────────────────────────
+  //  SECTIONS
+  // ──────────────────────────────────────────
 
-  Widget _buildHeroProfile() {
-    return Column(
-      children: [
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              width: 150,
-              height: 150,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF6366F1).withOpacity(0.2),
-                    blurRadius: 40,
-                    spreadRadius: 10,
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.white.withOpacity(0.3),
-                    Colors.white.withOpacity(0.05)
-                  ],
-                ),
-                border: Border.all(
-                    color: Colors.white.withOpacity(0.1), width: 1.5),
-              ),
-              child: Container(
-                width: 130,
-                height: 130,
-                decoration: const BoxDecoration(
+  Widget _buildHero() {
+    return Center(
+      child: Column(
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 108,
+                height: 108,
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
+                  gradient: LinearGradient(colors: [
+                    Colors.white.withOpacity(0.15),
+                    Colors.white.withOpacity(0.04),
+                  ]),
+                  border: Border.all(color: Colors.white.withOpacity(0.18), width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFCBE11).withOpacity(0.35),
+                      blurRadius: 40,
+                      spreadRadius: 4,
+                    ),
+                  ],
                 ),
                 child: ClipOval(
                   child: _profileImageUrl != null
                       ? (_profileImageUrl!.startsWith('http')
                           ? Image.network(_profileImageUrl!, fit: BoxFit.cover)
-                          : Image.file(File(_profileImageUrl!),
-                              fit: BoxFit.cover))
-                      : const Icon(Icons.person_rounded,
-                          color: Colors.white, size: 64),
+                          : Image.file(File(_profileImageUrl!), fit: BoxFit.cover))
+                      : const Icon(Icons.person_rounded, color: Colors.white60, size: 48),
                 ),
               ),
-            ),
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF6366F1),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: GestureDetector(
+                  onTap: _pickImage,
+                  child: Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFCBE11),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFF002147), width: 2.5),
+                    ),
+                    child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 14),
                   ),
-                  child: const Icon(Icons.camera_alt_rounded,
-                      color: Colors.white, size: 18),
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        Text(
-          _userName ?? 'Refugee User',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontSize: 32,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -1,
+            ],
           ),
-        ),
-      ],
-    ).animate().fadeIn().slideY(begin: 0.2, end: 0);
+          const SizedBox(height: 16),
+          Text(
+            _userName ?? 'Registered User',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+                color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
+          ),
+          if (_userPhone != null) ...[
+            const SizedBox(height: 4),
+            Text(_userPhone!,
+                style: GoogleFonts.dmSans(color: Colors.white54, fontSize: 13)),
+          ],
+        ],
+      ),
+    ).animate().fadeIn(duration: 500.ms).slideY(begin: 0.15, end: 0);
   }
 
-  Widget _buildVerificationBadge() {
+  Widget _buildStatusBadge() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFF10B981).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.2)),
+        color: const Color(0xFF10B981).withOpacity(0.12),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.verified_user_rounded,
-              color: Color(0xFF10B981), size: 16),
-          const SizedBox(width: 8),
-          Text(
-            'UNHCR VERIFIED STATUS',
-            style: GoogleFonts.dmSans(
-              color: const Color(0xFF10B981),
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.2,
-            ),
-          ),
+          const Icon(Icons.verified_rounded, color: Color(0xFF10B981), size: 14),
+          const SizedBox(width: 7),
+          Text('UNHCR REGISTERED',
+              style: GoogleFonts.dmSans(
+                  color: const Color(0xFF10B981),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.4)),
         ],
       ),
-    );
+    ).animate().fadeIn(delay: 200.ms);
   }
 
-  Widget _buildStatsGrid() {
+  Widget _buildStats() {
     return Row(
       children: [
-        Expanded(
-            child: _buildStatItem('Circle Size', '${_familyMembers.length + 1}',
-                Icons.groups_rounded, Colors.blueAccent)),
+        _stat('${_familyMembers.length + 1}', 'Household', Icons.groups_rounded,
+            const Color(0xFF82C4E8)),
         const SizedBox(width: 12),
-        Expanded(
-            child: _buildStatItem(
-                'Records', '14', Icons.history_rounded, Colors.purpleAccent)),
+        _stat('$_medicalVisits', 'Visits', Icons.local_hospital_outlined,
+            const Color(0xFF34D399)),
         const SizedBox(width: 12),
-        Expanded(
-            child: _buildStatItem(
-                'Status', 'Primary', Icons.star_rounded, Colors.amberAccent)),
+        _stat('Primary', 'Account', Icons.account_circle_outlined,
+            const Color(0xFFFBBF24)),
       ],
+    ).animate().fadeIn(delay: 300.ms);
+  }
+
+  Widget _stat(String value, String label, IconData icon, Color color) {
+    return Expanded(
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 8),
+            Text(value,
+                style: GoogleFonts.poppins(
+                    color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 2),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.dmSans(
+                    color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildStatItem(
-      String label, String value, IconData icon, Color color) {
+  Widget _buildCaseCard() {
     return GlassCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
+          _infoRow(
+            Icons.badge_outlined,
+            'Refugee / Case ID',
+            _refugeeId ?? 'Pending — complete registration',
+            copyable: _refugeeId != null,
+          ),
+          _divider(),
+          _infoRow(
+            Icons.location_city_outlined,
+            'Camp Assignment',
+            _campName ?? 'Not yet assigned',
+          ),
+          if (_registrationDate != null) ...[
+            _divider(),
+            _infoRow(
+              Icons.calendar_today_outlined,
+              'Registered Since',
+              _registrationDate!,
             ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(height: 12),
-          Text(value,
-              style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold)),
-          Text(label,
-              style: GoogleFonts.dmSans(
-                  color: Colors.white38,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600)),
+          ],
         ],
       ),
-    );
+    ).animate().fadeIn(delay: 400.ms);
   }
 
-  Widget _buildUserInfoCard() {
-    return GlassCard(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          _buildInfoRow(
-              Icons.qr_code_rounded, 'D-IDENTITY ID', 'REF-987-420-GOLD'),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Divider(color: Colors.white10),
-          ),
-          _buildInfoRow(Icons.phone_rounded, 'SECURE LINE', '+254 ••• •• 678'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String label, String value) {
+  Widget _infoRow(IconData icon, String label, String value, {bool copyable = false}) {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(9),
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: Colors.white54, size: 18),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: GoogleFonts.dmSans(
+                      color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.8)),
+              Text(value,
+                  style: GoogleFonts.dmSans(
+                      color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+            ],
+          ),
+        ),
+        if (copyable)
+          GestureDetector(
+            onTap: () {
+              Clipboard.setData(ClipboardData(text: value));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('ID copied to clipboard'),
+                    duration: Duration(seconds: 1)));
+            },
+            child: const Icon(Icons.copy_rounded, color: Colors.white30, size: 16),
+          ),
+      ],
+    );
+  }
+
+  Widget _divider() => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 14),
+        child: Divider(color: Colors.white10, height: 1),
+      );
+
+  Widget _buildHouseholdCard() {
+    return GlassCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '${_familyMembers.length + 1} member${_familyMembers.length == 0 ? '' : 's'} registered',
+                style: GoogleFonts.dmSans(color: Colors.white54, fontSize: 13),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => Navigator.pushNamed(context, '/refugee/family_registration')
+                    .then((_) => _load()),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFCBE11).withOpacity(0.18),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFFCBE11).withOpacity(0.35)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.add_rounded, color: Color(0xFF82C4E8), size: 14),
+                      const SizedBox(width: 4),
+                      Text('Add Member',
+                          style: GoogleFonts.dmSans(
+                              color: const Color(0xFF82C4E8),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+
+          // Primary holder
+          _memberRow(_userName ?? 'You', 'Account Holder', primary: true),
+
+          // Registered dependents
+          ..._familyMembers.map((m) => Column(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Divider(color: Colors.white10, height: 1),
+                  ),
+                  _memberRow(
+                    m['name'] ?? 'Member',
+                    m['relationship'] ?? 'Family Member',
+                  ),
+                ],
+              )),
+
+          if (_familyMembers.isEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'No dependents added yet. Tap "Add Member" to register your spouse, children, or other household members under your case.',
+              style: GoogleFonts.dmSans(
+                  color: Colors.white30, fontSize: 12, height: 1.6),
+            ),
+          ],
+        ],
+      ),
+    ).animate().fadeIn(delay: 450.ms);
+  }
+
+  Widget _memberRow(String name, String role, {bool primary = false}) {
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: primary
+                ? const Color(0xFFFCBE11).withOpacity(0.18)
+                : Colors.white.withOpacity(0.06),
+          ),
+          child: Icon(
+            primary ? Icons.person_rounded : Icons.person_outline_rounded,
+            color: primary ? const Color(0xFF82C4E8) : Colors.white54,
+            size: 18,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(name,
+              style: GoogleFonts.dmSans(
+                  color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: primary
+                ? const Color(0xFFFCBE11).withOpacity(0.14)
+                : Colors.white.withOpacity(0.05),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: Colors.white54, size: 20),
+          child: Text(role,
+              style: GoogleFonts.dmSans(
+                  color: primary ? const Color(0xFF82C4E8) : Colors.white38,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600)),
         ),
-        const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      ],
+    );
+  }
+
+  Widget _buildDigitalIdTile() {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const DigitalIdentityScreen())),
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        child: Row(
           children: [
-            Text(label,
-                style: GoogleFonts.dmSans(
-                    color: Colors.white38,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2)),
-            Text(value,
-                style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600)),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFCBE11).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.credit_card_rounded, color: Color(0xFF82C4E8), size: 22),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('UNHCR Digital Certificate',
+                      style: GoogleFonts.dmSans(
+                          color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text('View and share your verified identity document',
+                      style: GoogleFonts.dmSans(color: Colors.white38, fontSize: 11)),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white24, size: 13),
           ],
         ),
-      ],
-    );
+      ),
+    ).animate().fadeIn(delay: 500.ms);
   }
 
-  Widget _buildSettingsGroup(String title, List<Widget> items) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 16),
-          child: Text(
-            title.toUpperCase(),
-            style: GoogleFonts.dmSans(
-              color: const Color(0xFF818CF8),
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 2,
-            ),
-          ),
-        ),
-        GlassCard(
-          padding: EdgeInsets.zero,
-          child: Column(children: items),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSecurityToggleTile(
-      IconData icon, String title, String subtitle, bool value, Function(bool)? onChanged) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: Row(
+  Widget _buildSupportCard() {
+    return GlassCard(
+      padding: EdgeInsets.zero,
+      child: Column(
         children: [
-          Icon(icon, color: Colors.white70, size: 22),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600)),
-                Text(subtitle,
-                    style: GoogleFonts.dmSans(
-                        color: Colors.white38, fontSize: 12)),
-              ],
-            ),
+          _navRow(
+            Icons.help_outline_rounded,
+            'Community Help',
+            'FAQs, how-to guides, and usage tips',
+            const Color(0xFF60A5FA),
+            () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const CommunityHelpScreen())),
           ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: const Color(0xFF6366F1),
-            activeTrackColor: const Color(0xFF6366F1).withOpacity(0.3),
-            inactiveThumbColor: Colors.white24,
-            inactiveTrackColor: Colors.white10,
+          const Divider(color: Colors.white10, height: 1, indent: 20, endIndent: 20),
+          _navRow(
+            Icons.support_agent_rounded,
+            'Direct Support',
+            'Contact UNHCR and humanitarian staff',
+            const Color(0xFF34D399),
+            () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const DirectSupportScreen())),
+          ),
+          const Divider(color: Colors.white10, height: 1, indent: 20, endIndent: 20),
+          _navRow(
+            Icons.info_outline_rounded,
+            'About MyQueue',
+            'Version, mission, privacy and legal',
+            const Color(0xFFA78BFA),
+            () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const AboutAppScreen())),
           ),
         ],
       ),
-    );
+    ).animate().fadeIn(delay: 550.ms);
   }
 
-  Widget _buildSettingsTile(
-      IconData icon, String title, String subtitle, VoidCallback onTap) {
+  Widget _navRow(IconData icon, String title, String sub, Color color, VoidCallback onTap) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Row(
             children: [
-              Icon(icon, color: Colors.white70, size: 22),
-              const SizedBox(width: 16),
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10)),
+                child: Icon(icon, color: color, size: 18),
+              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(title,
-                        style: GoogleFonts.poppins(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600)),
-                    Text(subtitle,
                         style: GoogleFonts.dmSans(
-                            color: Colors.white38, fontSize: 12)),
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600)),
+                    Text(sub,
+                        style: GoogleFonts.dmSans(color: Colors.white38, fontSize: 11)),
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios_rounded,
-                  color: Colors.white24, size: 14),
+              const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white24, size: 13),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSignOutBtn() {
+    return GestureDetector(
+      onTap: _confirmSignOut,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEF4444).withOpacity(0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.22)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 17),
+            const SizedBox(width: 10),
+            Text('Sign Out',
+                style: GoogleFonts.dmSans(
+                    color: const Color(0xFFEF4444),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700)),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(delay: 600.ms);
+  }
+
+  Widget _label(String text) => Text(
+        text,
+        style: GoogleFonts.dmSans(
+            color: const Color(0xFF82C4E8),
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.8),
+      );
+}
+
+// ──────────────────────────────────────────
+//  Small shared widgets
+// ──────────────────────────────────────────
+
+class _CircleBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _CircleBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.07),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+        ),
+        child: Icon(icon, color: Colors.white70, size: 16),
       ),
     );
   }

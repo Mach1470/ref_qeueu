@@ -28,7 +28,7 @@ class _PushAlertsScreenState extends State<PushAlertsScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF0F172A), Color(0xFF1E1B4B), Color(0xFF312E81)],
+            colors: [Color(0xFF001530), Color(0xFF002147), Color(0xFF003D7A)],
           ),
         ),
         child: Column(
@@ -133,7 +133,7 @@ class _PushAlertsScreenState extends State<PushAlertsScreen> {
   Widget _buildSectionHeader(String title) {
     return Text(
       title.toUpperCase(),
-      style: GoogleFonts.dmSans(color: const Color(0xFF818CF8), fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5),
+      style: GoogleFonts.dmSans(color: const Color(0xFF82C4E8), fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5),
     );
   }
 
@@ -162,8 +162,8 @@ class _PushAlertsScreenState extends State<PushAlertsScreen> {
             Switch(
               value: value,
               onChanged: onChanged,
-              activeThumbColor: const Color(0xFF6366F1),
-              activeTrackColor: const Color(0xFF6366F1).withOpacity(0.3),
+              activeThumbColor: const Color(0xFFFCBE11),
+              activeTrackColor: const Color(0xFFFCBE11).withOpacity(0.3),
               inactiveThumbColor: Colors.white24,
               inactiveTrackColor: Colors.white10,
             ),

@@ -111,7 +111,7 @@ class _JoinQueueSelectionScreenState extends State<JoinQueueSelectionScreen> {
         backgroundColor: const Color(0xFFF8FAFC),
         appBar: AppBar(
           title: Text('Join Queue',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.merriweather(
                   fontWeight: FontWeight.bold, color: Colors.black)),
           backgroundColor: Colors.white,
           elevation: 0,
@@ -124,7 +124,7 @@ class _JoinQueueSelectionScreenState extends State<JoinQueueSelectionScreen> {
                 children: [
                   Text(
                     "Who is visiting today?",
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.merriweather(
                         fontSize: 18, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 16),
@@ -138,7 +138,7 @@ class _JoinQueueSelectionScreenState extends State<JoinQueueSelectionScreen> {
                     children: [
                       Text(
                         "Family Members",
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.merriweather(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: Colors.grey[700]),
@@ -159,7 +159,7 @@ class _JoinQueueSelectionScreenState extends State<JoinQueueSelectionScreen> {
                     Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Text("No family members added yet.",
-                          style: GoogleFonts.dmSans(color: Colors.grey)),
+                          style: GoogleFonts.merriweather(color: Colors.grey)),
                     ),
 
                   ..._familyMembers.map((m) => _buildIdCard(m, false)),
@@ -211,7 +211,7 @@ class _JoinQueueSelectionScreenState extends State<JoinQueueSelectionScreen> {
                               children: [
                                 Text(
                                   'Request Ambulance',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.merriweather(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
@@ -220,7 +220,7 @@ class _JoinQueueSelectionScreenState extends State<JoinQueueSelectionScreen> {
                                 const SizedBox(height: 4),
                                 Text(
                                   'Emergency medical transport',
-                                  style: GoogleFonts.dmSans(
+                                  style: GoogleFonts.merriweather(
                                     color: Colors.white.withOpacity(0.9),
                                     fontSize: 13,
                                   ),
@@ -254,7 +254,7 @@ class _JoinQueueSelectionScreenState extends State<JoinQueueSelectionScreen> {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12))),
                 child: Text("Join Queue (${_selectedIds.length})",
-                    style: GoogleFonts.dmSans(
+                    style: GoogleFonts.merriweather(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.white)))));
@@ -303,19 +303,19 @@ class _JoinQueueSelectionScreenState extends State<JoinQueueSelectionScreen> {
                   children: [
                     Text(
                       person['name'] ?? 'Unknown',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.merriweather(
                           fontWeight: FontWeight.w700, fontSize: 16),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       "ID: ${person['individualNumber'] ?? 'N/A'}",
                       style:
-                          GoogleFonts.dmSans(color: Colors.grey, fontSize: 12),
+                          GoogleFonts.merriweather(color: Colors.grey, fontSize: 12),
                     ),
                     if (person['age'] != null)
                       Text(
                         "Age: ${person['age']} yrs",
-                        style: GoogleFonts.dmSans(
+                        style: GoogleFonts.merriweather(
                             color: Colors.grey, fontSize: 12),
                       ),
                   ],

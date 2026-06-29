@@ -15,34 +15,65 @@ service cloud.firestore {
     }
     
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      try {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      } catch(e) {
+        return null;
+      }
     }
     
     function hasRole(role) {
-      return isAuthenticated() && getUserData().role == role;
+      return isAuthenticated() && getUserData() != null && getUserData().role == role;
     }
     
     function hasAnyRole(roles) {
-      return isAuthenticated() && getUserData().role in roles;
+      return isAuthenticated() && getUserData() != null && getUserData().role in roles;
     }
     
     function belongsToFacility(facilityId) {
-      return isAuthenticated() && getUserData().hospitalId == facilityId;
+      return isAuthenticated() && getUserData() != null && getUserData().assignedFacilityId == facilityId;
+    }
+    
+    function isSessionValid() {
+      let userDoc = getUserData();
+      return isAuthenticated() && userDoc != null && 
+             userDoc.phoneVerified == true &&
+             userDoc.phoneVerified != null;
+    }
+    
+    // Define staff roles that manage healthcare operations
+    function isHealthcareStaff() {
+      let userRole = getUserData().role;
+      return hasAnyRole(['doctor', 'pharmacy', 'lab', 'maternity', 'chw', 'hospital_admin', 'super_admin']);
+    }
+    
+    // Define patient/refugee roles
+    function isPatient() {
+      return hasAnyRole(['refugee', 'patient']);
+    }
+    
+    // Rate limiting helper (simple check - in production use Cloud Functions)
+    function isRateLimited() {
+      return false; // Implement in Cloud Functions for better control
     }
     
     // =========================================================================
-    // USERS COLLECTION
+    // USERS COLLECTION - Profile Management
     // =========================================================================
-    
     match /users/{userId} {
-      // Users can read their own profile, admins can read all
+      // Users can read their own profile
       allow read: if isOwner(userId) || hasRole('super_admin');
       
-      // Users can create their own profile
-      allow create: if isOwner(userId);
+      // New user registration (create account)
+      allow create: if isOwner(userId) && 
+                       request.resource.data.phone != null &&
+                       request.resource.data.phone != '' &&
+                       request.resource.data.role != null &&
+                       request.resource.data.phoneVerified != null;
       
-      // Users can update their own profile (except role), admins can update all
-      allow update: if (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'hospitalId']))
+      // Users update own profile (except role, facility assignment, verified status)
+      allow update: if isOwner(userId) && 
+                       !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'assignedFacilityId', 'phoneVerified', 'uid'])
                     || hasRole('super_admin')
                     || hasRole('hospital_admin');
       
@@ -51,91 +82,161 @@ service cloud.firestore {
     }
     
     // =========================================================================
-    // HOSPITALS COLLECTION
+    // SESSION MANAGEMENT
     // =========================================================================
-    
-    match /hospitals/{hospitalId} {
-      // All authenticated users can read hospitals (for facility selection)
-      allow read: if isAuthenticated();
+    match /sessions/{sessionId} {
+      // Users can read their own sessions
+      allow read: if resource.data.userId == request.auth.uid || hasRole('super_admin');
       
-      // Only admins can write
-      allow write: if hasAnyRole(['super_admin', 'hospital_admin']);
+      // System creates sessions (via Cloud Function or auth service)
+      allow create: if request.auth != null;
+      
+      // Users can update their own sessions (mark as inactive)
+      allow update: if resource.data.userId == request.auth.uid && 
+                       !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId', 'role', 'createdAt']);
+      
+      // Admin can manage sessions
+      allow delete: if hasRole('super_admin');
     }
     
     // =========================================================================
-    // QUEUE SYSTEM (refugee_queue_system)
+    // HEALTH FACILITIES (Hospitals, Clinics, Health Centers)
     // =========================================================================
+    match /health_facilities/{facilityId} {
+      // All authenticated users can read facilities (for facility selection and map)
+      allow read: if isAuthenticated();
+      
+      // Only super_admin can create/edit facilities
+      allow write: if hasRole('super_admin');
+      
+      allow delete: if hasRole('super_admin');
+    }
     
+    // =========================================================================
+    // REFUGEE QUEUE SYSTEM - Multi-facility support
+    // =========================================================================
     match /refugee_queue_system/{document=**} {
-      // Staff roles that can manage queues
-      function isStaff() {
-        return hasAnyRole(['doctor', 'pharmacy', 'lab', 'maternity', 'hospital_admin', 'super_admin']);
-      }
       
-      // Incoming Queue (Doctor's Queue)
+      // ─── INCOMING QUEUE (Doctor's Queue) ───
       match /queues/incoming/{queueId} {
-        // Staff can read/write, patients can read their own entries
-        allow read: if isStaff() || (isAuthenticated() && resource.data.patientId == request.auth.uid);
-        allow create: if isAuthenticated(); // Patients can join queue
-        allow update, delete: if isStaff();
+        // Patients can read their own queue entries
+        // Healthcare staff (doctors, CHWs, admins) can read all
+        allow read: if isAuthenticated() && (
+          resource.data.patientId == request.auth.uid ||
+          isHealthcareStaff()
+        );
+        
+        // Patients can create queue entries (join queue)
+        allow create: if isAuthenticated() && 
+                         request.resource.data.patientId == request.auth.uid &&
+                         request.resource.data.facilityId != null &&
+                         request.resource.data.status == 'waiting';
+        
+        // Healthcare staff can update queue entries
+        allow update: if isHealthcareStaff() &&
+                         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['patientId', 'facilityId']);
+        
+        // Only admins can delete
+        allow delete: if hasAnyRole(['hospital_admin', 'super_admin']);
       }
       
-      // Pharmacy Queue
+      // ─── TRIAGE ASSESSMENTS (CHW & Healthcare Staff) ───
+      match /triage_assessments/{assessmentId} {
+        // Patients can read assessments performed on them
+        // CHWs and healthcare staff can read assessments
+        allow read: if isAuthenticated() && (
+          resource.data.patientId == request.auth.uid ||
+          isHealthcareStaff()
+        );
+        
+        // CHWs and doctors can create triage assessments
+        allow create: if hasAnyRole(['chw', 'doctor', 'hospital_admin', 'super_admin']) &&
+                         request.resource.data.patientId != null &&
+                         request.resource.data.chwId != null &&
+                         request.resource.data.facilityId != null &&
+                         request.resource.data.priority in ['critical', 'high', 'medium', 'low'];
+        
+        // Only the CHW who created it or healthcare staff can update
+        allow update: if (resource.data.chwId == request.auth.uid || isHealthcareStaff()) &&
+                         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['patientId', 'chwId', 'assessmentTime']);
+        
+        allow delete: if hasAnyRole(['hospital_admin', 'super_admin']);
+      }
+      
+      // ─── PHARMACY QUEUE ───
       match /queues/pharmacy/{queueId} {
-        allow read: if isStaff() || (isAuthenticated() && resource.data.patientId == request.auth.uid);
-        allow write: if hasAnyRole(['doctor', 'pharmacy', 'hospital_admin', 'super_admin']);
+        allow read: if isAuthenticated() && (
+          resource.data.patientId == request.auth.uid ||
+          isHealthcareStaff()
+        );
+        
+        allow create: if hasAnyRole(['doctor', 'chw', 'hospital_admin', 'super_admin']);
+        
+        allow update: if isHealthcareStaff();
+        
+        allow delete: if hasAnyRole(['hospital_admin', 'super_admin']);
       }
       
-      // Lab Queue
+      // ─── LAB QUEUE ───
       match /queues/lab/{queueId} {
-        allow read: if isStaff() || (isAuthenticated() && resource.data.patientId == request.auth.uid);
-        allow write: if hasAnyRole(['doctor', 'lab', 'hospital_admin', 'super_admin']);
+        allow read: if isAuthenticated() && (
+          resource.data.patientId == request.auth.uid ||
+          isHealthcareStaff()
+        );
+        
+        allow create: if hasAnyRole(['doctor', 'chw', 'hospital_admin', 'super_admin']);
+        
+        allow update: if isHealthcareStaff();
+        
+        allow delete: if hasAnyRole(['hospital_admin', 'super_admin']);
       }
       
-      // Maternity Queue
+      // ─── MATERNITY QUEUE ───
       match /queues/maternity/{queueId} {
-        allow read: if isStaff() || (isAuthenticated() && resource.data.patientId == request.auth.uid);
-        allow write: if hasAnyRole(['doctor', 'maternity', 'hospital_admin', 'super_admin']);
+        allow read: if isAuthenticated() && (
+          resource.data.patientId == request.auth.uid ||
+          isHealthcareStaff()
+        );
+        
+        allow create: if hasAnyRole(['doctor', 'chw', 'hospital_admin', 'super_admin']);
+        
+        allow update: if isHealthcareStaff();
+        
+        allow delete: if hasAnyRole(['hospital_admin', 'super_admin']);
       }
       
-      // Patient Profiles
+      // ─── PATIENT PROFILES ───
       match /patients/profiles/{patientId} {
-        allow read: if isOwner(patientId) || isStaff();
-        allow create: if isOwner(patientId) || isStaff();
-        allow update: if isOwner(patientId) || isStaff();
+        allow read: if isOwner(patientId) || isHealthcareStaff();
+        
+        allow create: if isOwner(patientId) || isHealthcareStaff();
+        
+        allow update: if isOwner(patientId) || isHealthcareStaff();
+        
         allow delete: if hasAnyRole(['hospital_admin', 'super_admin']);
       }
     }
     
     // =========================================================================
-    // ANALYTICS (Read-only for staff, write via server)
+    // PRESCRIPTIONS - Doctor Issued
     // =========================================================================
-    
-    match /analytics/{document=**} {
-      // Staff and admins can read analytics
-      allow read: if hasAnyRole(['doctor', 'pharmacy', 'lab', 'maternity', 'hospital_admin', 'super_admin']);
-      
-      // Only server (admin SDK) can write - clients cannot directly write analytics
-      // In production, use Cloud Functions to write analytics
-      allow write: if hasAnyRole(['doctor', 'pharmacy', 'lab', 'maternity', 'hospital_admin', 'super_admin']);
-    }
-    
-    // =========================================================================
-    // PRESCRIPTIONS
-    // =========================================================================
-    
     match /prescriptions/{prescriptionId} {
-      // Patients can read their prescriptions, staff can read all
+      // Patients can read prescriptions issued to them
+      // Healthcare staff can read relevant prescriptions
       allow read: if isAuthenticated() && (
         resource.data.patientId == request.auth.uid ||
-        hasAnyRole(['doctor', 'pharmacy', 'hospital_admin', 'super_admin'])
+        isHealthcareStaff()
       );
       
       // Only doctors can create prescriptions
-      allow create: if hasRole('doctor');
+      allow create: if hasRole('doctor') &&
+                       request.resource.data.patientId != null &&
+                       request.resource.data.doctorId == request.auth.uid &&
+                       request.resource.data.status == 'active';
       
-      // Doctors can update, pharmacy can mark as fulfilled
-      allow update: if hasAnyRole(['doctor', 'pharmacy']);
+      // Doctors can update their own prescriptions, pharmacy can mark as fulfilled
+      allow update: if (resource.data.doctorId == request.auth.uid && hasRole('doctor')) ||
+                       (hasRole('pharmacy') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']));
       
       // Only admins can delete
       allow delete: if hasAnyRole(['hospital_admin', 'super_admin']);
@@ -144,45 +245,94 @@ service cloud.firestore {
     // =========================================================================
     // LAB REQUESTS & RESULTS
     // =========================================================================
-    
     match /lab_requests/{requestId} {
+      // Patients can read their own lab requests
+      // Lab staff and doctors can read relevant requests
       allow read: if isAuthenticated() && (
         resource.data.patientId == request.auth.uid ||
-        hasAnyRole(['doctor', 'lab', 'hospital_admin', 'super_admin'])
+        hasAnyRole(['lab', 'doctor', 'hospital_admin', 'super_admin'])
       );
       
-      allow create: if hasRole('doctor');
-      allow update: if hasAnyRole(['doctor', 'lab']);
+      // Only doctors can request labs
+      allow create: if hasRole('doctor') &&
+                       request.resource.data.patientId != null &&
+                       request.resource.data.doctorId == request.auth.uid;
+      
+      // Lab staff and doctors can update
+      allow update: if hasAnyRole(['lab', 'doctor', 'hospital_admin', 'super_admin']);
+      
+      // Only admins can delete
       allow delete: if hasAnyRole(['hospital_admin', 'super_admin']);
     }
     
     // =========================================================================
-    // AMBULANCE SYSTEM
+    // AMBULANCE SYSTEM - Emergency Services
     // =========================================================================
-    
     match /ambulance_requests/{requestId} {
-      // Patients can read their own requests, ambulance staff and admins can read all
+      // Patients can read their own requests
+      // Ambulance drivers and staff can read all active requests
       allow read: if isAuthenticated() && (
         resource.data.patientId == request.auth.uid ||
-        hasAnyRole(['ambulance', 'hospital_admin', 'super_admin'])
+        hasAnyRole(['ambulance_driver', 'hospital_admin', 'super_admin'])
       );
       
-      // Any authenticated user can request ambulance
-      allow create: if isAuthenticated();
+      // Any authenticated user can request ambulance (emergency)
+      allow create: if isAuthenticated() &&
+                       request.resource.data.patientId == request.auth.uid &&
+                       request.resource.data.status == 'pending';
       
-      // Ambulance staff and admins can update
-      allow update: if hasAnyRole(['ambulance', 'hospital_admin', 'super_admin']);
+      // Ambulance drivers and staff can update status and location
+      allow update: if hasAnyRole(['ambulance_driver', 'hospital_admin', 'super_admin']);
       
       // Only admins can delete
       allow delete: if hasAnyRole(['hospital_admin', 'super_admin']);
     }
     
     match /ambulances/{ambulanceId} {
-      // All authenticated users can read ambulance locations (for tracking)
+      // All authenticated users can read ambulance locations
       allow read: if isAuthenticated();
       
-      // Only ambulance drivers and admins can update
-      allow write: if hasAnyRole(['ambulance', 'hospital_admin', 'super_admin']);
+      // Ambulance drivers can update their vehicle location and status
+      allow update: if hasAnyRole(['ambulance_driver', 'hospital_admin', 'super_admin']);
+      
+      // Only admins can write initial data or delete
+      allow write: if hasAnyRole(['hospital_admin', 'super_admin']);
     }
+    
+    // =========================================================================
+    // ANALYTICS - Read-only for staff
+    // =========================================================================
+    match /analytics/{document=**} {
+      // Healthcare staff can read analytics
+      allow read: if isHealthcareStaff();
+      
+      // Writes should be done via Cloud Functions (trusted environment)
+      allow write: if false; // Disable direct writes from client
+    }
+    
+    // =========================================================================
+    // AUDIT LOGS - Security and Compliance
+    // =========================================================================
+    match /audit_logs/{logId} {
+      // Only super_admin can read audit logs
+      allow read: if hasRole('super_admin');
+      
+      // Writes via Cloud Function only (trusted environment)
+      allow create: if request.auth != null; // Allow auth service to write
+      
+      allow write: if false; // No direct updates
+    }
+    
+    // =========================================================================
+    // SETTINGS & CONFIGURATION
+    // =========================================================================
+    match /settings/{document=**} {
+      // All authenticated users can read settings
+      allow read: if isAuthenticated();
+      
+      // Only super_admin can write settings
+      allow write: if hasRole('super_admin');
+    }
+    
   }
 }

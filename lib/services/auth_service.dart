@@ -2,6 +2,9 @@ import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ref_qeueu/services/database_service.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class AuthService {
   static const String _keyUserRole = 'user_role';
@@ -270,7 +273,7 @@ class AuthService {
   // Save login state for refugee (phone login)
   // Save login state for refugee (phone login) with timeouts
   Future<void> saveRefugeeLogin(String phone,
-      {String? displayName, String? demoId, int? queuePosition}) async {
+      {String? displayName, int? queuePosition}) async {
     try {
       final prefs = await SharedPreferences.getInstance()
           .timeout(const Duration(seconds: 5));
@@ -281,9 +284,6 @@ class AuthService {
 
       if (displayName != null && displayName.isNotEmpty) {
         await prefs.setString('user_name', displayName);
-      }
-      if (demoId != null && demoId.isNotEmpty) {
-        await prefs.setString(_keyUserId, demoId);
       }
       
       // Remember account for multi-account selector
@@ -303,13 +303,12 @@ class AuthService {
           final actorKey =
               phone.replaceAll('+', '').replaceAll(RegExp(r'[^0-9]'), '');
 
-          if (displayName != null || demoId != null) {
+          if (displayName != null) {
             try {
               await DatabaseService.instance.createUserProfile({
                 'name': displayName ?? 'Refugee',
                 'phone': phone,
                 'role': 'refugee',
-                'demoId': demoId ?? '',
               }).timeout(const Duration(seconds: 10));
             } catch (_) {}
           }
@@ -628,5 +627,92 @@ class AuthService {
   Future<String?> getProfilePicture(String userId) async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('profile_picture_$userId');
+  }
+
+  // --- Biometric Auth ---
+  Future<bool> authenticateWithBiometrics() async {
+    final LocalAuthentication auth = LocalAuthentication();
+    try {
+      final bool canAuthenticateWithBiometrics = await auth.canCheckBiometrics;
+      final bool canAuthenticate =
+          canAuthenticateWithBiometrics || await auth.isDeviceSupported();
+
+      if (!canAuthenticate) return false;
+
+      final bool didAuthenticate = await auth.authenticate(
+        localizedReason: 'Please authenticate to access MyQueue',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
+      );
+      
+      return didAuthenticate;
+    } catch (e) {
+      print('DEBUG: Biometric error: $e');
+      return false;
+    }
+  }
+
+  // --- Social Auth ---
+  Future<String?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        return 'Sign in aborted by user'; // The user canceled the sign-in
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      
+      if (userCredential.user != null) {
+        // Save the login state
+        await saveRefugeeLogin(
+          userCredential.user!.uid, // Using UID as phone equivalent for social
+          displayName: userCredential.user!.displayName ?? 'Refugee',
+        );
+        return null;
+      }
+      return 'Failed to sign in with Google';
+    } catch (e) {
+      print('DEBUG: signInWithGoogle error: $e');
+      return 'Google Sign-In Error. Note: Android requires SHA-1 configuration in Firebase. Error: $e';
+    }
+  }
+
+  Future<String?> signInWithApple() async {
+    try {
+      final AuthorizationCredentialAppleID appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final OAuthProvider oauthProvider = OAuthProvider('apple.com');
+      final OAuthCredential credential = oauthProvider.credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+
+      final UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      
+      if (userCredential.user != null) {
+        await saveRefugeeLogin(
+          userCredential.user!.uid,
+          displayName: appleCredential.givenName ?? userCredential.user!.displayName ?? 'Refugee',
+        );
+        return null;
+      }
+      return 'Failed to sign in with Apple';
+    } catch (e) {
+      print('DEBUG: signInWithApple error: $e');
+      return 'Apple Sign-In Error: $e';
+    }
   }
 }

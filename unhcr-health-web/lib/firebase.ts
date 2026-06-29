@@ -1,18 +1,19 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyDc8KryzdICxSzGZxDf4LNU3XObuA_frPs",
-    authDomain: "refugee-queue.firebaseapp.com",
-    projectId: "refugee-queue",
-    storageBucket: "refugee-queue.firebasestorage.app",
-    messagingSenderId: "184088838294",
-    appId: "1:184088838294:web:250dd9c6daa84bba8582b7",
-    databaseURL: "https://refugee-queue-default-rtdb.firebaseio.com"
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL
 };
 
-// Initialize Firebase
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const auth = getAuth(app);
 
-export { app, db };
+export { app, db, auth };

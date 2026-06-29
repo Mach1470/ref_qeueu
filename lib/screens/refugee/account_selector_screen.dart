@@ -34,7 +34,6 @@ class _AccountSelectorScreenState extends State<AccountSelectorScreen> {
       await _auth.saveRefugeeLogin(
         account['phone']!,
         displayName: account['name'],
-        demoId: account['id'],
       );
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/refugee_home');
@@ -54,7 +53,7 @@ class _AccountSelectorScreenState extends State<AccountSelectorScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
+            colors: [Color(0xFF001530), Color(0xFF002147)],
           ),
         ),
         child: Column(
@@ -88,8 +87,8 @@ class _AccountSelectorScreenState extends State<AccountSelectorScreen> {
                             padding: EdgeInsets.zero,
                             child: ListTile(
                               leading: CircleAvatar(
-                                backgroundColor: const Color(0xFF6366F1).withOpacity(0.2),
-                                child: Text(account['name']![0].toUpperCase(), style: const TextStyle(color: Color(0xFF818CF8))),
+                                backgroundColor: const Color(0xFFFCBE11).withOpacity(0.2),
+                                child: Text(account['name']![0].toUpperCase(), style: const TextStyle(color: Color(0xFF82C4E8))),
                               ),
                               title: Text(account['name']!, style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
                               subtitle: Text(account['phone'] ?? account['id']!, style: GoogleFonts.dmSans(color: Colors.white38)),
@@ -108,7 +107,7 @@ class _AccountSelectorScreenState extends State<AccountSelectorScreen> {
                   ElevatedButton(
                     onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6366F1),
+                      backgroundColor: const Color(0xFFFCBE11),
                       foregroundColor: Colors.white,
                       minimumSize: const Size(double.infinity, 56),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

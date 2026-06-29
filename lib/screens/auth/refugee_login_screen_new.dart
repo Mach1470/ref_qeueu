@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ref_qeueu/services/auth_service.dart';
-import 'package:ref_qeueu/widgets/logo_avatar.dart';
-import 'package:ref_qeueu/widgets/glass_widgets.dart';
 
 class RefugeeLoginScreenNew extends StatefulWidget {
   const RefugeeLoginScreenNew({super.key});
@@ -13,11 +10,7 @@ class RefugeeLoginScreenNew extends StatefulWidget {
 }
 
 class _RefugeeLoginScreenNewState extends State<RefugeeLoginScreenNew> {
-  final _formKey = GlobalKey<FormState>();
-  final _identifierCtrl = TextEditingController(); // Phone or ID
-  final _pinCtrl = TextEditingController();
   bool _isLoading = false;
-  bool _isObscure = true;
   List<Map<String, String>> _rememberedAccounts = [];
 
   @override
@@ -28,30 +21,24 @@ class _RefugeeLoginScreenNewState extends State<RefugeeLoginScreenNew> {
 
   Future<void> _checkRememberedAccounts() async {
     final accounts = await AuthService().getRememberedAccounts();
-    if (mounted) {
-      setState(() => _rememberedAccounts = accounts);
-    }
+    if (mounted) setState(() => _rememberedAccounts = accounts);
   }
 
-  Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
-
+  Future<void> _handleSocialLogin(String provider) async {
     setState(() => _isLoading = true);
-
+    String? error;
     try {
-      final identifier = _identifierCtrl.text.trim();
-      await Future.delayed(const Duration(seconds: 1));
-
-      if (identifier.isNotEmpty) {
-        await AuthService().saveRefugeeLogin(
-          identifier,
-          displayName: 'Refugee User',
-          demoId: identifier,
-          queuePosition: 3,
-        );
-
-        if (mounted) {
+      if (provider == 'Google') {
+        error = await AuthService().signInWithGoogle();
+      } else if (provider == 'Apple') {
+        error = await AuthService().signInWithApple();
+      }
+      if (mounted) {
+        if (error == null) {
           Navigator.pushReplacementNamed(context, '/refugee_home');
+        } else {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(error)));
         }
       }
     } catch (e) {
@@ -64,435 +51,311 @@ class _RefugeeLoginScreenNewState extends State<RefugeeLoginScreenNew> {
     }
   }
 
+  Future<void> _handleBiometricLogin() async {
+    setState(() => _isLoading = true);
+    final success = await AuthService().authenticateWithBiometrics();
+    if (mounted) {
+      setState(() => _isLoading = false);
+      if (success) {
+        Navigator.pushReplacementNamed(context, '/refugee_home');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Biometric authentication failed or cancelled')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final safeTop = MediaQuery.of(context).padding.top;
+    final blueH = size.height * 0.44;
+    final cardTop = size.height * 0.34;
+
     return Scaffold(
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Background Gradient
-          Container(
-            height: MediaQuery.of(context).size.height,
-            width: MediaQuery.of(context).size.width,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF1E3A8A), // Deep Blue
-                  Color(0xFF312E81), // Indigo
-                  Color(0xFF4C1D95), // Deep Purple
-                ],
-                stops: [0.0, 0.5, 1.0],
+          // ── UNHCR Blue top area ──
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: blueH,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF001F47), Color(0xFF0072BC)],
+                ),
               ),
             ),
           ),
-          // Decorative Blobs
+
+          // ── Refugee illustration ──
           Positioned(
-            top: -50,
-            right: -50,
-            child: _AnimatedBlob(
-              color: Colors.blue.withOpacity(0.2),
-              size: 250,
+            top: safeTop + 54,
+            left: 48,
+            right: 48,
+            height: blueH - safeTop - 58,
+            child: Image.asset(
+              'assets/illustrations/refugee_final.png',
+              fit: BoxFit.contain,
             ),
           ),
+
+          // ── White sign-in card ──
           Positioned(
-            bottom: 100,
-            left: -80,
-            child: _AnimatedBlob(
-              color: Colors.purple.withOpacity(0.2),
-              size: 300,
-            ),
-          ),
-          SafeArea(
-            child: SingleChildScrollView(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 28.0, vertical: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 20),
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                        color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
+            top: cardTop,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x1A0072BC),
+                    blurRadius: 32,
+                    offset: Offset(0, -6),
                   ),
-                  const SizedBox(height: 20),
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                        border:
-                            Border.all(color: Colors.white.withOpacity(0.2)),
-                      ),
-                      child: const LogoAvatar(size: 80),
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  Text(
-                    'Welcome Back',
-                    style: GoogleFonts.poppins(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Enter your details to access your queue.',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 16,
-                      color: Colors.white70,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.amber.withOpacity(0.4)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.info_outline_rounded,
-                            color: Colors.amber, size: 14),
-                        const SizedBox(width: 8),
-                        Text(
-                          'DEMO MODE ACTIVE',
-                          style: GoogleFonts.dmSans(
-                            color: Colors.amber,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  TweenAnimationBuilder<double>(
-                    duration: const Duration(milliseconds: 1000),
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    curve: Curves.easeOutCubic,
-                    builder: (context, value, child) {
-                      return Transform.translate(
-                        offset: Offset(0, 40 * (1 - value)),
-                        child: Opacity(
-                          opacity: value.clamp(0.0, 1.0),
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
-                            blurRadius: 40,
-                            offset: const Offset(0, 20),
-                          ),
-                        ],
-                      ),
-                      child: GlassCard(
-                        padding: const EdgeInsets.all(32),
-                        borderRadius: BorderRadius.circular(32),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            children: [
-                              Text(
-                                'Authorized Access',
-                                style: GoogleFonts.dmSans(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Container(
-                                height: 2,
-                                width: 40,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Colors.blueAccent,
-                                      Colors.purpleAccent
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(1),
-                                ),
-                              ),
-                              const SizedBox(height: 32),
-                              _buildTextField(
-                                controller: _identifierCtrl,
-                                label: 'PH Number / Identity ID',
-                                hint: '+254... or 123456',
-                                icon: Icons.person_rounded,
-                              ),
-                              const SizedBox(height: 24),
-                              _buildTextField(
-                                controller: _pinCtrl,
-                                label: 'Secure Access PIN',
-                                hint: 'Enter your PIN',
-                                icon: Icons.vpn_key_rounded,
-                                isPassword: true,
-                                obscureText: _isObscure,
-                                onToggleVisibility: () =>
-                                    setState(() => _isObscure = !_isObscure),
-                              ),
-                              const SizedBox(height: 16),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton(
-                                  onPressed: () {},
-                                  child: Text(
-                                    "Reset Credentials",
-                                    style: GoogleFonts.dmSans(
-                                      color: const Color(0xFF60A5FA),
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 32),
-                              Container(
-                                width: double.infinity,
-                                height: 64,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF6366F1),
-                                      Color(0xFF4F46E5)
-                                    ],
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF6366F1)
-                                          .withOpacity(0.4),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 10),
-                                    ),
-                                  ],
-                                ),
-                                child: ElevatedButton(
-                                  onPressed: _isLoading ? null : _handleLogin,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    foregroundColor: Colors.white,
-                                    shadowColor: Colors.transparent,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                  ),
-                                  child: _isLoading
-                                      ? const SizedBox(
-                                          width: 24,
-                                          height: 24,
-                                          child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              'Authenticate',
-                                              style: GoogleFonts.poppins(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                                letterSpacing: 1,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            const Icon(
-                                                Icons.arrow_forward_rounded,
-                                                size: 20),
-                                          ],
-                                        ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (_rememberedAccounts.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    Center(
-                      child: TextButton.icon(
-                        onPressed: () =>
-                            Navigator.pushNamed(context, '/account_selector'),
-                        icon: const Icon(Icons.switch_account_rounded,
-                            color: Colors.white70),
-                        label: Text(
-                          'Switch to Saved Account',
-                          style: GoogleFonts.dmSans(
-                              color: Colors.white70,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 40),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                ],
+              ),
+              child: SafeArea(
+                top: false,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(28, 28, 28, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Don't have an account? ",
-                        style: GoogleFonts.dmSans(color: Colors.white60),
+                        'Welcome Back!',
+                        style: GoogleFonts.poppins(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF001F47),
+                          height: 1.2,
+                        ),
                       ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/auth/refugee_signup');
-                        },
-                        child: Text(
-                          'Register',
-                          style: GoogleFonts.dmSans(
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF60A5FA),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Sign in to access your health profile and queue.',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 15,
+                          color: const Color(0xFF5A7A8A),
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+
+                      // Primary: Phone Number
+                      _PrimaryButton(
+                        icon: Icons.phone_android_rounded,
+                        label: 'Continue with Phone Number',
+                        onPressed: _isLoading
+                            ? null
+                            : () => Navigator.pushReplacementNamed(
+                                context,
+                                '/production_phone_login_refugee'),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Divider
+                      Row(children: [
+                        Expanded(child: Divider(color: Colors.grey.shade200)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'OR',
+                            style: GoogleFonts.dmSans(
+                              color: const Color(0xFFADBCC8),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1,
+                            ),
                           ),
                         ),
+                        Expanded(child: Divider(color: Colors.grey.shade200)),
+                      ]),
+
+                      const SizedBox(height: 20),
+
+                      // Google
+                      _SecondaryButton(
+                        icon: Icons.g_mobiledata_rounded,
+                        label: 'Continue with Google',
+                        onPressed: _isLoading
+                            ? null
+                            : () => _handleSocialLogin('Google'),
                       ),
-                    ],
-                  ),
-                  if (kDebugMode) ...[
-                    const SizedBox(height: 20),
-                    Center(
-                      child: TextButton(
-                        onPressed: () async {
-                          setState(() => _isLoading = true);
-                          await AuthService().saveRefugeeLogin(
-                            '+000000000',
-                            displayName: 'Debug User',
-                            demoId: 'debug-001',
-                            queuePosition: 1,
-                          );
-                          if (mounted) {
-                            Navigator.pushReplacementNamed(
-                                context, '/refugee_home');
-                          }
-                        },
-                        child: Text(
-                          '[DEBUG] Quick Login',
-                          style: GoogleFonts.dmSans(
-                              color: Colors.redAccent.withOpacity(0.8)),
+
+                      const SizedBox(height: 12),
+
+                      // Biometric
+                      _SecondaryButton(
+                        icon: Icons.fingerprint_rounded,
+                        label: 'Use Fingerprint / Face ID',
+                        onPressed: _isLoading ? null : _handleBiometricLogin,
+                      ),
+
+                      if (_rememberedAccounts.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        _SecondaryButton(
+                          icon: Icons.switch_account_rounded,
+                          label: 'Switch to Saved Account',
+                          onPressed: () => Navigator.pushNamed(
+                              context, '/account_selector'),
+                        ),
+                      ],
+
+                      const SizedBox(height: 32),
+
+                      // Register link
+                      Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              "Don't have an account?  ",
+                              style: GoogleFonts.dmSans(
+                                color: const Color(0xFF7A9AAA),
+                                fontSize: 14,
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => Navigator.pushNamed(
+                                  context, '/auth/refugee_signup'),
+                              child: Text(
+                                'Register',
+                                style: GoogleFonts.dmSans(
+                                  color: const Color(0xFF0072BC),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
-                ],
+                      const SizedBox(height: 28),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
+
+          // ── Back button ──
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                    border:
+                        Border.all(color: Colors.white.withOpacity(0.35)),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // ── Loading overlay ──
+          if (_isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.35),
+              child: const Center(
+                child: CircularProgressIndicator(color: Color(0xFF0072BC)),
+              ),
+            ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData icon,
-    bool isPassword = false,
-    bool obscureText = false,
-    VoidCallback? onToggleVisibility,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
+// ── Large filled pill button (primary CTA) ──
+class _PrimaryButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+
+  const _PrimaryButton(
+      {required this.icon, required this.label, this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 58,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 22),
+        label: Text(
           label,
-          style: GoogleFonts.dmSans(
-            color: Colors.white70,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
+          style: GoogleFonts.poppins(
+              fontSize: 16, fontWeight: FontWeight.w600),
         ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          obscureText: obscureText,
-          style: GoogleFonts.dmSans(color: Colors.white, fontSize: 16),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: GoogleFonts.dmSans(color: Colors.white24),
-            prefixIcon: Icon(icon, color: Colors.indigo[200], size: 22),
-            suffixIcon: isPassword
-                ? IconButton(
-                    icon: Icon(
-                      obscureText
-                          ? Icons.visibility_off_rounded
-                          : Icons.visibility_rounded,
-                      color: Colors.white54,
-                      size: 20,
-                    ),
-                    onPressed: onToggleVisibility,
-                  )
-                : null,
-            filled: true,
-            fillColor: Colors.white.withOpacity(0.08),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
-            ),
-          ),
-          validator: (v) => v!.isEmpty ? 'Required' : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF0072BC),
+          foregroundColor: Colors.white,
+          elevation: 6,
+          shadowColor: const Color(0x660072BC),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(29)),
         ),
-      ],
+      ),
     );
   }
 }
 
-class _AnimatedBlob extends StatelessWidget {
-  final Color color;
-  final double size;
+// ── Light outlined button (secondary option) ──
+class _SecondaryButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
 
-  const _AnimatedBlob({required this.color, required this.size});
+  const _SecondaryButton(
+      {required this.icon, required this.label, this.onPressed});
 
   @override
   Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(seconds: 4),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: color,
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.3),
-                blurRadius: 100,
-                spreadRadius: 50,
-              ),
-            ],
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 20, color: const Color(0xFF0072BC)),
+        label: Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF001F47),
           ),
-        );
-      },
+        ),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: Color(0xFFD0E4F4), width: 1.5),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(27)),
+          backgroundColor: const Color(0xFFF8FBFE),
+        ),
+      ),
     );
   }
 }

@@ -79,7 +79,7 @@ class _AccessPinScreenState extends State<AccessPinScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF0F172A), Color(0xFF1E1B4B), Color(0xFF312E81)],
+            colors: [Color(0xFF001530), Color(0xFF002147), Color(0xFF003D7A)],
           ),
         ),
         child: Column(
@@ -131,9 +131,9 @@ class _AccessPinScreenState extends State<AccessPinScreen> {
           margin: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isActive ? const Color(0xFF6366F1) : Colors.white10,
-            border: Border.all(color: isActive ? const Color(0xFF818CF8) : Colors.white24, width: 2),
-            boxShadow: isActive ? [BoxShadow(color: const Color(0xFF6366F1).withOpacity(0.5), blurRadius: 10)] : [],
+            color: isActive ? const Color(0xFFFCBE11) : Colors.white10,
+            border: Border.all(color: isActive ? const Color(0xFF82C4E8) : Colors.white24, width: 2),
+            boxShadow: isActive ? [BoxShadow(color: const Color(0xFFFCBE11).withOpacity(0.5), blurRadius: 10)] : [],
           ),
         );
       }),

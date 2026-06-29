@@ -5,6 +5,9 @@ import 'package:ref_qeueu/widgets/glass_widgets.dart';
 import 'package:ref_qeueu/widgets/safe_scaffold.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:ref_qeueu/services/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DigitalIdentityScreen extends StatefulWidget {
   const DigitalIdentityScreen({super.key});
@@ -26,15 +29,46 @@ class _DigitalIdentityScreenState extends State<DigitalIdentityScreen> {
   }
 
   Future<void> _loadData() async {
-    final name = (await _auth.getUserId()) ?? 'REF-000-GOLD';
-    final id = (await _auth.getUserId()) ?? 'REF-000-000-GOLD';
-    final profileImg = await _auth.getProfilePicture(id);
-    if (mounted) {
-      setState(() {
-        _userName = name;
-        _userId = id;
-        _profileImageUrl = profileImg;
-      });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final localName = prefs.getString('user_name');
+      final localId = prefs.getString('user_id');
+
+      String displayName = localName ?? '';
+      String displayId = localId ?? '';
+
+      // Fetch from Firestore for canonical name and refugeeId
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (doc.exists) {
+          final data = doc.data()!;
+          displayName = data['name']?.toString() ?? displayName;
+          displayId = data['refugeeId']?.toString()
+              ?? data['individualNumber']?.toString()
+              ?? displayId;
+        }
+      }
+
+      final profileImg = await _auth.getProfilePicture(user?.uid ?? '');
+      if (mounted) {
+        setState(() {
+          _userName = displayName.isNotEmpty ? displayName : 'Refugee User';
+          _userId = displayId.isNotEmpty ? displayId : 'ID not registered';
+          _profileImageUrl = profileImg;
+        });
+      }
+    } catch (e) {
+      debugPrint('Digital identity load error: $e');
+      if (mounted) {
+        setState(() {
+          _userName = 'Refugee User';
+          _userId = 'ID not available';
+        });
+      }
     }
   }
 
@@ -50,9 +84,9 @@ class _DigitalIdentityScreenState extends State<DigitalIdentityScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF0F172A),
-              Color(0xFF1E1B4B),
-              Color(0xFF312E81),
+              Color(0xFF001530),
+              Color(0xFF002147),
+              Color(0xFF003D7A),
             ],
           ),
         ),
@@ -66,7 +100,7 @@ class _DigitalIdentityScreenState extends State<DigitalIdentityScreen> {
                 height: 300,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF6366F1).withOpacity(0.12),
+                  color: const Color(0xFFFCBE11).withOpacity(0.12),
                 ),
               ).animate().fadeIn(duration: 1.seconds).scale(),
             ),
@@ -97,7 +131,7 @@ class _DigitalIdentityScreenState extends State<DigitalIdentityScreen> {
                             children: [
                               Text(
                                 'This digital identity is recognized by humanitarian agencies and local authorities for prioritized healthcare access and logistics support.',
-                                style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 13, height: 1.5),
+                                style: GoogleFonts.merriweather(color: Colors.white70, fontSize: 13, height: 1.5),
                               ),
                               const SizedBox(height: 20),
                               Row(
@@ -106,7 +140,7 @@ class _DigitalIdentityScreenState extends State<DigitalIdentityScreen> {
                                   const SizedBox(width: 8),
                                   Text(
                                     'Encrypted with 256-bit AES',
-                                    style: GoogleFonts.dmSans(color: Colors.blueAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                                    style: GoogleFonts.merriweather(color: Colors.blueAccent, fontSize: 11, fontWeight: FontWeight.bold),
                                   ),
                                 ],
                               ),
@@ -135,7 +169,7 @@ class _DigitalIdentityScreenState extends State<DigitalIdentityScreen> {
           const SizedBox(width: 16),
           Text(
             'Digital Identity',
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
+            style: GoogleFonts.merriweather(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
           ),
           const Spacer(),
           _buildCircleButton(Icons.share_rounded, () {}),
@@ -167,11 +201,11 @@ class _DigitalIdentityScreenState extends State<DigitalIdentityScreen> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF6366F1), Color(0xFF4F46E5), Color(0xFF312E81)],
+          colors: [Color(0xFF0072BC), Color(0xFF0060A9), Color(0xFF003D7A)],
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.3),
+            color: const Color(0xFFFCBE11).withOpacity(0.3),
             blurRadius: 40,
             offset: const Offset(0, 20),
           ),
@@ -204,7 +238,7 @@ class _DigitalIdentityScreenState extends State<DigitalIdentityScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('UNHCR CERTIFICATE',
-                            style: GoogleFonts.dmSans(
+                            style: GoogleFonts.merriweather(
                                 color: Colors.white60,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
@@ -213,7 +247,7 @@ class _DigitalIdentityScreenState extends State<DigitalIdentityScreen> {
                         Row(
                           children: [
                             Text('GOLD STATUS',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.merriweather(
                                     color: Colors.white,
                                     fontSize: 13,
                                     fontWeight: FontWeight.bold)),
@@ -246,9 +280,9 @@ class _DigitalIdentityScreenState extends State<DigitalIdentityScreen> {
                   ],
                 ),
                 const Spacer(),
-                Text(_userName.toUpperCase(), style: GoogleFonts.poppins(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                Text(_userName.toUpperCase(), style: GoogleFonts.merriweather(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                 const SizedBox(height: 8),
-                Text(_userId, style: GoogleFonts.dmSans(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 3)),
+                Text(_userId, style: GoogleFonts.merriweather(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 3)),
               ],
             ),
           ),
@@ -260,7 +294,7 @@ class _DigitalIdentityScreenState extends State<DigitalIdentityScreen> {
   Widget _buildSectionHeader(String title) {
     return Text(
       title.toUpperCase(),
-      style: GoogleFonts.dmSans(color: const Color(0xFF818CF8), fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5),
+      style: GoogleFonts.merriweather(color: const Color(0xFF82C4E8), fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5),
     );
   }
 
@@ -276,8 +310,8 @@ class _DigitalIdentityScreenState extends State<DigitalIdentityScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: GoogleFonts.dmSans(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.bold)),
-                Text(value, style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(label, style: GoogleFonts.merriweather(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.bold)),
+                Text(value, style: GoogleFonts.merriweather(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
               ],
             ),
           ],

@@ -2,10 +2,13 @@
 
 import ManagementLayout from '@/components/dashboard/management-layout';
 import { motion } from 'framer-motion';
-import { mockHealthFacilities } from '@/lib/facilities';
+import { useFirebaseData } from '@/lib/hooks/useFirebaseData';
 import { Hospital, MapPin, Users, Activity, ExternalLink } from 'lucide-react';
 
 export default function FacilitiesPage() {
+  const { data, loading } = useFirebaseData('facilities');
+  const facilitiesList = data ? Object.values(data) as any[] : [];
+
   return (
     <ManagementLayout>
       <motion.div
@@ -18,8 +21,13 @@ export default function FacilitiesPage() {
           <p className="text-slate-500 font-medium">Monitoring and managing health facilities across the camp</p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6">
-          {mockHealthFacilities.map((facility, index) => (
+        {loading ? (
+          <div className="py-12 flex justify-center">
+            <div className="w-8 h-8 border-4 border-slate-200 border-t-ocean-500 rounded-full animate-spin"></div>
+          </div>
+        ) : (
+          <div className="grid lg:grid-cols-2 gap-6">
+            {facilitiesList.map((facility, index) => (
             <motion.div
               key={facility.id}
               initial={{ opacity: 0, scale: 0.95 }}
@@ -74,7 +82,8 @@ export default function FacilitiesPage() {
               </div>
             </motion.div>
           ))}
-        </div>
+          </div>
+        )}
       </motion.div>
     </ManagementLayout>
   );

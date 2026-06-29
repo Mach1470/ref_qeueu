@@ -2,9 +2,10 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../widgets/mock_map_view.dart';
+import '../../widgets/production_map_view.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:ref_qeueu/widgets/glass_widgets.dart';
@@ -22,7 +23,7 @@ class _AmbulanceDriverDashboardState extends State<AmbulanceDriverDashboard>
     with TickerProviderStateMixin {
   static const Color premiumRed = Color(0xFFE11D48);
   static const Color successGreen = Color(0xFF10B981);
-  static const Color backgroundDark = Color(0xFF0F172A);
+  static const Color backgroundDark = Color(0xFF001530);
 
   double? _currentLat;
   double? _currentLng;
@@ -31,9 +32,9 @@ class _AmbulanceDriverDashboardState extends State<AmbulanceDriverDashboard>
   String _driverName = 'Officer John';
 
   // Stats
-  int _tripsToday = 4;
-  final double _distanceKm = 12.8;
-  final int _rating = 4;
+  int _tripsToday = 0;
+  double _distanceKm = 0.0;
+  int _rating = 5;
 
   // Incoming request
   Map<String, dynamic>? _incomingRequest;
@@ -64,10 +65,31 @@ class _AmbulanceDriverDashboardState extends State<AmbulanceDriverDashboard>
 
   Future<void> _loadDriverInfo() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _vehicleId = prefs.getString('driver_vehicle_id') ?? 'AMB-004';
-      _driverName = prefs.getString('user_name') ?? 'Officer John';
-    });
+    if (mounted) {
+      setState(() {
+        _vehicleId = prefs.getString('driver_vehicle_id') ?? 'AMB-001';
+        _driverName = prefs.getString('user_name') ?? 'Driver';
+      });
+    }
+
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        final statsRef =
+            FirebaseDatabase.instance.ref('ambulance_drivers/$uid/stats');
+        final snapshot = await statsRef.get();
+        if (snapshot.exists && mounted) {
+          final stats = Map<String, dynamic>.from(snapshot.value as Map);
+          setState(() {
+            _tripsToday = (stats['tripsToday'] ?? 0) as int;
+            _distanceKm = ((stats['distanceKm'] ?? 0) as num).toDouble();
+            _rating = (stats['rating'] ?? 5) as int;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading driver stats: $e');
+    }
   }
 
   Future<void> _initLocation() async {
@@ -96,6 +118,9 @@ class _AmbulanceDriverDashboardState extends State<AmbulanceDriverDashboard>
   void _toggleOnlineStatus(bool value) {
     setState(() => _isOnline = value);
 
+    // Write status to Realtime DB
+    _writeDriverStatus(value ? 'available' : 'offline');
+
     if (_isOnline) {
       _startListeningForRequests();
       _updateDriverLocation();
@@ -103,6 +128,19 @@ class _AmbulanceDriverDashboardState extends State<AmbulanceDriverDashboard>
       _requestSubscription?.cancel();
       _incomingRequest = null;
       _countdownTimer?.cancel();
+    }
+  }
+
+  void _writeDriverStatus(String status) {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      final key = uid ?? _vehicleId;
+      FirebaseDatabase.instance.ref('ambulance_drivers/$key').update({
+        'status': status,
+        'lastSeen': ServerValue.timestamp,
+      });
+    } catch (e) {
+      debugPrint('Error writing driver status: $e');
     }
   }
 
@@ -217,16 +255,9 @@ class _AmbulanceDriverDashboardState extends State<AmbulanceDriverDashboard>
           Positioned.fill(
             child: Opacity(
               opacity: 0.3,
-              child: MockMapView(
-                primaryColor: premiumRed,
-                markers: [
-                  if (_currentLat != null)
-                    const MockMarker(
-                        x: 200,
-                        y: 300,
-                        icon: Icons.local_hospital_rounded,
-                        color: premiumRed),
-                ],
+              child: ProductionMapView(
+                title: 'Ambulance Location',
+                showUserLocation: true,
               ),
             ),
           ),
@@ -338,7 +369,7 @@ class _AmbulanceDriverDashboardState extends State<AmbulanceDriverDashboard>
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [const Color(0xFF1E1B4B).withOpacity(0.9), backgroundDark],
+          colors: [const Color(0xFF002147).withOpacity(0.9), backgroundDark],
         ),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
         border: Border.all(color: Colors.white.withOpacity(0.1)),
@@ -357,7 +388,7 @@ class _AmbulanceDriverDashboardState extends State<AmbulanceDriverDashboard>
                       Icons.route_rounded, Colors.blueAccent)),
               const SizedBox(width: 12),
               Expanded(
-                  child: _buildStatItem('Rating', '$_rating.8',
+                  child: _buildStatItem('Rating', '$_rating.0',
                       Icons.star_rounded, Colors.amberAccent)),
             ],
           ),

@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../widgets/mock_map_view.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../widgets/production_map_view.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -21,7 +22,7 @@ class AmbulanceNavigationScreen extends StatefulWidget {
 class _AmbulanceNavigationScreenState extends State<AmbulanceNavigationScreen> {
   static const Color primaryRed = Color(0xFFE11900);
   static const Color accentRed = Color(0xFFFF3B30);
-  static const Color deepIndigo = Color(0xFF1E1B4B);
+  static const Color deepIndigo = Color(0xFF002147);
   static const Color successGreen = Color(0xFF10B981);
 
   double? _currentLat;
@@ -176,29 +177,16 @@ class _AmbulanceNavigationScreenState extends State<AmbulanceNavigationScreen> {
             )
           : Stack(
               children: [
-                // Full Screen Mock Map
-                MockMapView(
-                  showRoute: true,
-                  primaryColor: primaryRed,
-                  markers: [
-                    if (_currentLat != null && _currentLng != null)
-                      const MockMarker(
-                        x: 150,
-                        y: 300,
-                        icon: Icons.navigation,
-                        color: Colors.blueAccent,
-                        label: 'You',
-                      ),
-                    if (_patientLat != null && _patientLng != null)
-                      const MockMarker(
-                        x: 100,
-                        y: 100,
-                        icon: Icons.person_pin,
-                        color: primaryRed,
-                        label: 'Patient',
-                      ),
-                  ],
+                // Full Screen Google Map
+                ProductionMapView(
+                  title: 'Navigate to Patient',
+                  showUserLocation: true,
+                  initialCenter: _currentLat != null && _currentLng != null
+                      ? LatLng(_currentLat!, _currentLng!)
+                      : null,
                 ),
+
+                // Status Overlay
 
                 // Premium Gradient Overlay for depth
                 Positioned.fill(

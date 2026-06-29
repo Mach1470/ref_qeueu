@@ -19,12 +19,16 @@ import {
   Settings
 } from 'lucide-react';
 import { useState } from 'react';
-import { mockHealthFacilities, HealthFacility } from '@/lib/facilities';
+import { useFirebaseData } from '@/lib/hooks/useFirebaseData';
+import { HealthFacility } from '@/lib/types';
 import { campLocations, LocationNode } from '@/lib/locations';
 
 export default function AdvancedAccessPage() {
   const [activeTab, setActiveTab] = useState<'provision' | 'approvals' | 'logs' | 'areas'>('approvals');
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const { data } = useFirebaseData('facilities');
+  const facilitiesList = data ? Object.values(data) as any[] : [];
 
   // Mock pending staff for approval
   const pendingStaff = [
@@ -155,7 +159,7 @@ export default function AdvancedAccessPage() {
               </div>
 
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {mockHealthFacilities.map(facility => (
+                {facilitiesList.map(facility => (
                   <ProvisionCard key={facility.id} facility={facility} />
                 ))}
               </div>

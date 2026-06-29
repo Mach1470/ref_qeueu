@@ -1,12 +1,14 @@
 import 'dart:async';
-import 'dart:ui';
+import 'dart:math' as math;
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
+import '../services/offline_sync_service.dart';
 import '../services/security_service.dart';
-import '../widgets/logo_avatar.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -16,16 +18,23 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _orbController;
+  late AnimationController _fadeController;
 
   @override
   void initState() {
     super.initState();
+
     _orbController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 10),
+      duration: const Duration(seconds: 8),
     )..repeat();
+
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..forward();
 
     _startInitialization();
   }
@@ -33,12 +42,22 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void dispose() {
     _orbController.dispose();
+    _fadeController.dispose();
     super.dispose();
   }
 
   Future<void> _startInitialization() async {
-    // Artificial delay to show off the "Beautiful Loading" UX
-    await Future.delayed(const Duration(seconds: 3));
+    // Flush any offline queue if online
+    try {
+      final results = await Connectivity().checkConnectivity();
+      final online = results.any((r) => r != ConnectivityResult.none);
+      if (!mounted) return;
+      final sync = context.read<OfflineSyncService>();
+      if (online) unawaited(sync.flush());
+    } catch (_) {}
+
+    // Minimum display time so the splash feels intentional
+    await Future.delayed(const Duration(milliseconds: 2200));
     await _decideNavigation();
   }
 
@@ -56,7 +75,6 @@ class _SplashScreenState extends State<SplashScreen>
     }
 
     if (isLoggedIn) {
-      // Check for security lock
       final security = SecurityService.instance;
       if (await security.isBiometricsEnabled() || await security.isPinEnabled()) {
         if (mounted) {
@@ -64,7 +82,6 @@ class _SplashScreenState extends State<SplashScreen>
           return;
         }
       }
-
       final route = await AuthService().getSavedRoute();
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, route ?? '/role_selection');
@@ -90,44 +107,60 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return Scaffold(
+      backgroundColor: const Color(0xFF001530),
       body: Stack(
         children: [
-          // Background Gradient
+          // ── Deep gradient background ──
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFF0F172A),
-                  Color(0xFF1E293B),
-                  Color(0xFF0F172A),
+                  Color(0xFF001530), // UNHCR Navy
+                  Color(0xFF002147), // UNHCR Deep Navy
+                  Color(0xFF003D7A), // UNHCR Deep Blue
                 ],
+                stops: [0.0, 0.5, 1.0],
               ),
             ),
           ),
 
-          // Animated Orbs (Premium background)
+          // ── Animated background orbs ──
           AnimatedBuilder(
             animation: _orbController,
-            builder: (context, child) {
+            builder: (context, _) {
+              final t = _orbController.value;
               return Stack(
                 children: [
-                  _buildOrb(
-                    color: const Color(0xFF386BB8).withOpacity(0.15),
-                    size: 400,
-                    offset: Offset(
-                      100 * (1 + 0.2 * (0.5 - _orbController.value).abs()),
-                      -50,
+                  // Top-left orb
+                  Positioned(
+                    top: -80 + 30 * math.sin(t * 2 * math.pi),
+                    left: -60 + 20 * math.cos(t * 2 * math.pi),
+                    child: _Orb(
+                      color: const Color(0xFF0072BC).withOpacity(0.25),
+                      size: 320,
                     ),
                   ),
-                  _buildOrb(
-                    color: const Color(0xFFE11D48).withOpacity(0.1),
-                    size: 300,
-                    offset: Offset(
-                      MediaQuery.of(context).size.width - 200,
-                      MediaQuery.of(context).size.height - 250,
+                  // Bottom-right orb
+                  Positioned(
+                    bottom: -100 + 25 * math.cos(t * 2 * math.pi),
+                    right: -80 + 20 * math.sin(t * 2 * math.pi),
+                    child: _Orb(
+                      color: const Color(0xFF0060A9).withOpacity(0.2),
+                      size: 360,
+                    ),
+                  ),
+                  // Centre accent orb
+                  Positioned(
+                    top: size.height * 0.38 + 15 * math.sin(t * math.pi),
+                    left: size.width * 0.5 - 100,
+                    child: _Orb(
+                      color: const Color(0xFFFCBE11).withOpacity(0.1),
+                      size: 200,
                     ),
                   ),
                 ],
@@ -135,140 +168,201 @@ class _SplashScreenState extends State<SplashScreen>
             },
           ),
 
-          // Glassmorphic Content
+          // ── Main content ──
           Center(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(40),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Container(
-                  width: 280,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Glowing logo container
+                Container(
+                  width: 110,
+                  height: 110,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(40),
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withOpacity(0.15),
+                        Colors.white.withOpacity(0.05),
+                      ],
+                    ),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withOpacity(0.2),
                       width: 1.5,
                     ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Logo with pulse animation
-                      const LogoAvatar(size: 100)
-                          .animate(onPlay: (c) => c.repeat())
-                          .shimmer(duration: 2000.ms, color: Colors.white24)
-                          .scale(
-                            begin: const Offset(1, 1),
-                            end: const Offset(1.05, 1.05),
-                            duration: 1500.ms,
-                            curve: Curves.easeInOut,
-                          )
-                          .then()
-                          .scale(
-                            begin: const Offset(1.05, 1.05),
-                            end: const Offset(1, 1),
-                            duration: 1500.ms,
-                            curve: Curves.easeInOut,
-                          ),
-                      const SizedBox(height: 32),
-
-                      // App Name
-                      Text(
-                        'MYQUEUE',
-                        style: GoogleFonts.poppins(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 4,
-                          color: Colors.white,
-                        ),
-                      )
-                          .animate()
-                          .fadeIn(delay: 300.ms)
-                          .slideY(begin: 0.2, end: 0),
-
-                      const SizedBox(height: 12),
-
-                      // Slogan
-                      Text(
-                        'Efficiency in Care',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white60,
-                          letterSpacing: 1.2,
-                        ),
-                      ).animate().fadeIn(delay: 600.ms),
-
-                      const SizedBox(height: 48),
-
-                      // Custom Premium Loading Bar
-                      _buildLoadingIndicator(),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0072BC).withOpacity(0.4),
+                        blurRadius: 60,
+                        spreadRadius: 10,
+                      ),
                     ],
                   ),
-                ),
-              ),
+                  child: ClipOval(
+                    child: Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Image.asset(
+                        'assets/illustrations/app_logo.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                )
+                    .animate()
+                    .fadeIn(duration: 700.ms, curve: Curves.easeOut)
+                    .scale(
+                      begin: const Offset(0.6, 0.6),
+                      end: const Offset(1.0, 1.0),
+                      duration: 900.ms,
+                      curve: Curves.elasticOut,
+                    ),
+
+                const SizedBox(height: 36),
+
+                // App name
+                Text(
+                  'MyQueue',
+                  style: GoogleFonts.poppins(
+                    fontSize: 38,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
+                    height: 1.1,
+                  ),
+                )
+                    .animate()
+                    .fadeIn(delay: 350.ms, duration: 600.ms)
+                    .slideY(begin: 0.3, end: 0, curve: Curves.easeOutCubic),
+
+                const SizedBox(height: 8),
+
+                // Tagline
+                Text(
+                  'Efficiency in Care',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withOpacity(0.55),
+                    letterSpacing: 2.5,
+                  ),
+                ).animate().fadeIn(delay: 600.ms, duration: 700.ms),
+              ],
+            ),
+          ),
+
+          // ── Pulsing loading dots at the bottom ──
+          Positioned(
+            bottom: 80,
+            left: 0,
+            right: 0,
+            child: Column(
+              children: [
+                _LoadingDots()
+                    .animate()
+                    .fadeIn(delay: 900.ms, duration: 600.ms),
+                const SizedBox(height: 28),
+                Text(
+                  'UNHCR HEALTH PLATFORM',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 10,
+                    color: Colors.white.withOpacity(0.3),
+                    letterSpacing: 2.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ).animate().fadeIn(delay: 1100.ms, duration: 800.ms),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildOrb(
-      {required Color color, required double size, required Offset offset}) {
-    return Positioned(
-      left: offset.dx,
-      top: offset.dy,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: color,
-              blurRadius: 100,
-              spreadRadius: 50,
-            ),
-          ],
-        ),
-      ),
-    );
+// ── Pulsing three-dot loader ──
+class _LoadingDots extends StatefulWidget {
+  @override
+  State<_LoadingDots> createState() => _LoadingDotsState();
+}
+
+class _LoadingDotsState extends State<_LoadingDots>
+    with TickerProviderStateMixin {
+  final List<AnimationController> _controllers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    for (int i = 0; i < 3; i++) {
+      final ctrl = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 600),
+      );
+      _controllers.add(ctrl);
+      Future.delayed(Duration(milliseconds: i * 200), () {
+        if (mounted) ctrl.repeat(reverse: true);
+      });
+    }
   }
 
-  Widget _buildLoadingIndicator() {
-    return Column(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: SizedBox(
-            width: 160,
-            height: 4,
-            child: LinearProgressIndicator(
-              backgroundColor: Colors.white.withOpacity(0.1),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(Color(0xFF386BB8)),
-            ),
+  @override
+  void dispose() {
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(3, (i) {
+        return AnimatedBuilder(
+          animation: _controllers[i],
+          builder: (_, __) {
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: 6,
+              height: 6 + _controllers[i].value * 6,
+              decoration: BoxDecoration(
+                color: Color.lerp(
+                  Colors.white.withOpacity(0.3),
+                  const Color(0xFFFCBE11),
+                  _controllers[i].value,
+                ),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            );
+          },
+        );
+      }),
+    );
+  }
+}
+
+// ── Background orb ──
+class _Orb extends StatelessWidget {
+  final Color color;
+  final double size;
+  const _Orb({required this.color, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: color,
+            blurRadius: 120,
+            spreadRadius: 60,
           ),
-        ).animate(onPlay: (c) => c.repeat()).shimmer(duration: 1500.ms),
-        const SizedBox(height: 16),
-        Text(
-          'POWERING UP...',
-          style: GoogleFonts.poppins(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            color: Colors.white38,
-            letterSpacing: 2,
-          ),
-        )
-            .animate(onPlay: (c) => c.repeat())
-            .fadeIn(duration: 1000.ms)
-            .then()
-            .fadeOut(duration: 1000.ms),
-      ],
+        ],
+      ),
     );
   }
 }

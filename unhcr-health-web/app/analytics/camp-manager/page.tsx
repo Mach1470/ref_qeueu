@@ -13,7 +13,8 @@ import {
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie } from 'recharts';
 import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useMemo } from 'react';
+import { useFirebaseData } from '@/lib/hooks/useFirebaseData';
 
 // Mock Data Generators (Scoped)
 const getPerformanceData = (campId: string) => [
@@ -37,12 +38,24 @@ function DashboardContent() {
     const searchParams = useSearchParams();
     const campId = searchParams.get('camp') || 'kakuma';
 
+    const { data: queuesData, loading } = useFirebaseData('facility_queues');
+
     const campName = campId === 'kakuma' ? 'Kakuma Refugee Camp' : 'Dadaab Refugee Complex';
     const population = campId === 'kakuma' ? '185,400' : '234,000';
     const activeFacilities = campId === 'kakuma' ? 8 : 12;
 
     const performanceData = getPerformanceData(campId);
     const demographicsData = getDemographicsData(campId);
+
+    // Calculate live totals from Firebase
+    let totalLiveQueue = 0;
+    if (queuesData) {
+        Object.values(queuesData).forEach((facilityQueue: any) => {
+            if (typeof facilityQueue === 'object') {
+                totalLiveQueue += Object.keys(facilityQueue).length;
+            }
+        });
+    }
 
     return (
         <div className="space-y-8">
@@ -56,18 +69,17 @@ function DashboardContent() {
                     </p>
                 </div>
                 <div className="bg-white p-1.5 rounded-2xl border border-slate-200 flex items-center shadow-sm">
-                    <button className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold transition-all shadow-md">Today</button>
+                    <button className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold transition-all shadow-md">Live Data</button>
                     <button className="px-4 py-2 text-slate-500 hover:text-slate-900 rounded-xl text-xs font-bold transition-all">Week</button>
-                    <button className="px-4 py-2 text-slate-500 hover:text-slate-900 rounded-xl text-xs font-bold transition-all">Month</button>
                 </div>
             </div>
 
             {/* KPI Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <KpiCard
-                    title="Total Patients Today"
-                    value={campId === 'dadaab' ? "1,245" : "842"}
-                    trend="+12%"
+                    title="Live Active Queue"
+                    value={loading ? "..." : totalLiveQueue.toString()}
+                    trend="Real-time"
                     icon={<Users size={24} />}
                     color="ocean"
                 />

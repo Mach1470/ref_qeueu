@@ -59,13 +59,13 @@ class _AuthLockScreenState extends State<AuthLockScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
+            colors: [Color(0xFF001530), Color(0xFF002147)],
           ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.lock_person_rounded, color: Color(0xFF6366F1), size: 80)
+            const Icon(Icons.lock_person_rounded, color: Color(0xFFFCBE11), size: 80)
                 .animate()
                 .scale(duration: 600.ms, curve: Curves.easeOutBack)
                 .shimmer(delay: 1.seconds),
@@ -109,7 +109,7 @@ class _AuthLockScreenState extends State<AuthLockScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF6366F1)),
+                    border: Border.all(color: const Color(0xFFFCBE11)),
                   ),
                 ),
               ).animate().fadeIn().slideY(begin: 0.2, end: 0),
@@ -131,7 +131,7 @@ class _AuthLockScreenState extends State<AuthLockScreen> {
   Widget _buildBiometricPrompt() {
     return Column(
       children: [
-        const CircularProgressIndicator(color: Color(0xFF6366F1)),
+        const CircularProgressIndicator(color: Color(0xFFFCBE11)),
         const SizedBox(height: 24),
         Text(
           'Waiting for authentication...',

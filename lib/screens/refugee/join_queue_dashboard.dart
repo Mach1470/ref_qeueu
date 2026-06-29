@@ -1,6 +1,6 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ref_qeueu/widgets/glass_widgets.dart';
 import 'package:ref_qeueu/widgets/safe_scaffold.dart';
 import 'package:ref_qeueu/services/auth_service.dart';
@@ -15,8 +15,10 @@ class JoinQueueDashboard extends StatefulWidget {
 
 class _JoinQueueDashboardState extends State<JoinQueueDashboard> {
   final AuthService _authService = AuthService();
-  List<Map<String, dynamic>> _familyMembers = [];
-  final Set<String> _selectedIds = {};
+
+  // All members: self is always index 0
+  List<Map<String, dynamic>> _allMembers = [];
+  final Set<String> _selectedIds = {'SELF'}; // Self pre-selected
   bool _isLoading = true;
 
   @override
@@ -28,17 +30,33 @@ class _JoinQueueDashboardState extends State<JoinQueueDashboard> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final members = await _authService.getFamilyMembers();
-      _familyMembers = members
-          .map((m) => {
-                ...m,
-                'id':
-                    m['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
-              })
-          .toList();
+      final prefs = await SharedPreferences.getInstance();
+      final selfName = prefs.getString('user_name') ?? 'You';
+
+      final self = <String, dynamic>{
+        'id': 'SELF',
+        'name': selfName,
+        'relationship': 'Primary Account Holder',
+        'isPrimary': true,
+      };
+
+      final family = await _authService.getFamilyMembers();
+      final mappedFamily = family.map((m) {
+        return <String, dynamic>{
+          ...m,
+          'id': m['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+          'isPrimary': false,
+        };
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _allMembers = [self, ...mappedFamily];
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      debugPrint("Error loading data: $e");
-    } finally {
+      debugPrint('JoinQueueDashboard._loadData error: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -53,15 +71,17 @@ class _JoinQueueDashboardState extends State<JoinQueueDashboard> {
     });
   }
 
-  Future<void> _navigateToSymptomInput(Map<String, dynamic> member) async {
-    // Map dynamic to String, String as expected by symptom input
-    final Map<String, String> memberStr = {};
-    member.forEach((k, v) => memberStr[k] = v.toString());
+  void _continueToSymptoms() {
+    if (_selectedIds.isEmpty) return;
+
+    final selected = _allMembers
+        .where((m) => _selectedIds.contains(m['id']))
+        .toList();
 
     Navigator.pushNamed(
       context,
       '/symptom_input',
-      arguments: memberStr,
+      arguments: {'selectedMembers': selected},
     );
   }
 
@@ -77,15 +97,14 @@ class _JoinQueueDashboardState extends State<JoinQueueDashboard> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF0F172A), // Slate 900
-              Color(0xFF1E1B4B), // Indigo 950
-              Color(0xFF1E1B4B), // Indigo 950
+              Color(0xFF001530),
+              Color(0xFF002147),
+              Color(0xFF002147),
             ],
           ),
         ),
         child: Stack(
           children: [
-            // Background Orbs
             Positioned(
               top: -50,
               right: -50,
@@ -94,20 +113,18 @@ class _JoinQueueDashboardState extends State<JoinQueueDashboard> {
                 height: 300,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF6366F1).withOpacity(0.05),
+                  color: const Color(0xFFFCBE11).withOpacity(0.05),
                 ),
               )
-                  .animate(
-                      onPlay: (controller) => controller.repeat(reverse: true))
+                  .animate(onPlay: (c) => c.repeat(reverse: true))
                   .fadeIn(duration: 3.seconds)
                   .scale(
                       begin: const Offset(0.8, 0.8),
                       end: const Offset(1.2, 1.2)),
             ),
-
             Column(
               children: [
-                // HEADER
+                // Header
                 SafeArea(
                   bottom: false,
                   child: Padding(
@@ -123,9 +140,9 @@ class _JoinQueueDashboardState extends State<JoinQueueDashboard> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Clinic Access',
+                              'Step 1 of 3',
                               style: GoogleFonts.dmSans(
-                                color: const Color(0xFF818CF8),
+                                color: const Color(0xFF82C4E8),
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 1.2,
@@ -153,11 +170,13 @@ class _JoinQueueDashboardState extends State<JoinQueueDashboard> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const CircularProgressIndicator(
-                                  color: Color(0xFF6366F1), strokeWidth: 3),
+                                  color: Color(0xFFFCBE11), strokeWidth: 3),
                               const SizedBox(height: 24),
-                              Text('Syncing secure records...',
-                                  style: GoogleFonts.dmSans(
-                                      color: Colors.white38, letterSpacing: 1)),
+                              Text(
+                                'Loading accounts...',
+                                style: GoogleFonts.dmSans(
+                                    color: Colors.white38, letterSpacing: 1),
+                              ),
                             ],
                           ),
                         )
@@ -168,34 +187,36 @@ class _JoinQueueDashboardState extends State<JoinQueueDashboard> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: 10),
-                              _buildInfoSection(),
-
-                              const SizedBox(height: 40),
+                              _buildInfoBanner(),
+                              const SizedBox(height: 32),
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    'Who is visiting store?',
+                                    'Who needs medical attention?',
                                     style: GoogleFonts.poppins(
                                       color: Colors.white,
-                                      fontSize: 18,
+                                      fontSize: 16,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  if (_familyMembers.isNotEmpty)
+                                  if (_selectedIds.isNotEmpty)
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 12, vertical: 6),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF6366F1)
-                                            .withOpacity(0.1),
+                                        color: const Color(0xFFFCBE11)
+                                            .withOpacity(0.15),
                                         borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                            color: const Color(0xFFFCBE11)
+                                                .withOpacity(0.3)),
                                       ),
                                       child: Text(
                                         '${_selectedIds.length} SELECTED',
                                         style: GoogleFonts.dmSans(
-                                          color: const Color(0xFF818CF8),
+                                          color: const Color(0xFF82C4E8),
                                           fontSize: 10,
                                           fontWeight: FontWeight.w900,
                                           letterSpacing: 1,
@@ -204,15 +225,11 @@ class _JoinQueueDashboardState extends State<JoinQueueDashboard> {
                                     ),
                                 ],
                               ),
-                              const SizedBox(height: 20),
-
-                              if (_familyMembers.isEmpty)
-                                _buildEmptyState()
-                              else
-                                _buildMembersList(),
-
-                              const SizedBox(
-                                  height: 140), // Bottom padding for action bar
+                              const SizedBox(height: 16),
+                              _buildMembersList(),
+                              const SizedBox(height: 24),
+                              _buildAddMemberButton(),
+                              const SizedBox(height: 140),
                             ],
                           ),
                         ),
@@ -222,59 +239,39 @@ class _JoinQueueDashboardState extends State<JoinQueueDashboard> {
           ],
         ),
       ),
-      bottomSheet: (!_isLoading && _familyMembers.isNotEmpty)
-          ? _buildBottomAction()
-          : null,
+      bottomSheet: !_isLoading ? _buildBottomAction() : null,
     );
   }
 
-  Widget _buildInfoSection() {
+  Widget _buildInfoBanner() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
           colors: [
-            const Color(0xFF6366F1).withOpacity(0.1),
-            const Color(0xFF6366F1).withOpacity(0.02),
+            const Color(0xFFFCBE11).withOpacity(0.12),
+            const Color(0xFFFCBE11).withOpacity(0.03),
           ],
         ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.2)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFCBE11).withOpacity(0.2)),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withOpacity(0.15),
+              color: const Color(0xFFFCBE11).withOpacity(0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.flash_on_rounded,
-                color: Color(0xFF818CF8), size: 24),
+            child: const Icon(Icons.people_alt_rounded,
+                color: Color(0xFF82C4E8), size: 20),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Priority Entry',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  'Select multiple members to join the same check-in session.',
-                  style: GoogleFonts.dmSans(
-                    color: Colors.white60,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
+            child: Text(
+              'Select everyone who needs to be seen today. You can join for yourself and family members at once.',
+              style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 13),
             ),
           ),
         ],
@@ -282,242 +279,231 @@ class _JoinQueueDashboardState extends State<JoinQueueDashboard> {
     ).animate().fadeIn().slideX(begin: 0.1, end: 0);
   }
 
-  Widget _buildEmptyState() {
-    return GlassCard(
-      padding: const EdgeInsets.all(40),
-      child: Center(
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.04),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.group_add_outlined,
-                  color: Colors.white.withOpacity(0.2), size: 48),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Your circle is empty',
-              style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Add members to your Digital ID to join the queue together.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.dmSans(color: Colors.white54, fontSize: 14),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () =>
-                  Navigator.pushNamed(context, '/refugee/family_registration')
-                      .then((_) => _loadData()),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6366F1),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              ),
-              child: Text('Add First Member',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      ),
-    ).animate().fadeIn().scale(begin: const Offset(0.9, 0.9));
-  }
-
   Widget _buildMembersList() {
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: _familyMembers.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 16),
+      itemCount: _allMembers.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final m = _familyMembers[index];
-        final isSelected = _selectedIds.contains(m['id']);
+        final m = _allMembers[index];
+        final id = m['id'] as String;
+        final isSelected = _selectedIds.contains(id);
+        final isPrimary = m['isPrimary'] == true;
+
         return InkWell(
-          onTap: () => _toggleSelection(m['id']!),
-          borderRadius: BorderRadius.circular(24),
+          onTap: () => _toggleSelection(id),
+          borderRadius: BorderRadius.circular(20),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
+            duration: const Duration(milliseconds: 250),
             curve: Curves.easeOutCubic,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: const Color(0xFF6366F1).withOpacity(0.15),
+                        color: const Color(0xFFFCBE11).withOpacity(0.2),
                         blurRadius: 20,
-                        offset: const Offset(0, 10),
+                        offset: const Offset(0, 8),
                       )
                     ]
                   : [],
             ),
             child: GlassCard(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
               opacity: isSelected ? 0.15 : 0.05,
               borderColor: isSelected
-                  ? const Color(0xFF6366F1).withOpacity(0.5)
+                  ? const Color(0xFFFCBE11).withOpacity(0.6)
                   : Colors.white.withOpacity(0.08),
               borderWidth: isSelected ? 2 : 1,
               child: Row(
                 children: [
                   Container(
-                    height: 58,
-                    width: 58,
+                    height: 52,
+                    width: 52,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
                         colors: isSelected
-                            ? [
-                                const Color(0xFF6366F1),
-                                const Color(0xFF4F46E5),
-                              ]
+                            ? [const Color(0xFFFCBE11), const Color(0xFF0072BC)]
                             : [
                                 Colors.white.withOpacity(0.1),
-                                Colors.white.withOpacity(0.02),
+                                Colors.white.withOpacity(0.02)
                               ],
                       ),
-                      border: Border.all(color: Colors.white.withOpacity(0.1)),
+                      border:
+                          Border.all(color: Colors.white.withOpacity(0.1)),
                     ),
                     child: Icon(
-                      isSelected ? Icons.check_rounded : Icons.person_rounded,
-                      color: isSelected ? Colors.white : Colors.white24,
-                      size: isSelected ? 28 : 26,
+                      isSelected
+                          ? Icons.check_rounded
+                          : (isPrimary
+                              ? Icons.stars_rounded
+                              : Icons.person_rounded),
+                      color: isSelected
+                          ? Colors.white
+                          : (isPrimary
+                              ? const Color(0xFF82C4E8)
+                              : Colors.white38),
+                      size: 22,
                     ),
                   ),
-                  const SizedBox(width: 20),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          m['name'] ?? 'Family Member',
-                          style: GoogleFonts.poppins(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 17,
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              m['name'] ?? 'Member',
+                              style: GoogleFonts.poppins(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                              ),
+                            ),
+                            if (isPrimary) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFCBE11)
+                                      .withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'YOU',
+                                  style: GoogleFonts.dmSans(
+                                    color: const Color(0xFF82C4E8),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         Text(
-                          'ID: ${m['id']}'.toUpperCase(),
+                          m['relationship'] ?? 'Family Member',
                           style: GoogleFonts.dmSans(
-                            color: isSelected
-                                ? const Color(0xFF818CF8)
-                                : Colors.white38,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
+                              color: Colors.white38, fontSize: 12),
                         ),
                       ],
                     ),
                   ),
-                  _buildRadioButton(isSelected),
+                  _buildCheckCircle(isSelected),
                 ],
               ),
             ),
           ),
-        ).animate().fadeIn(delay: (index * 100).ms).slideX(begin: 0.1, end: 0);
+        ).animate().fadeIn(delay: (index * 80).ms).slideX(begin: 0.1, end: 0);
       },
     );
   }
 
-  Widget _buildRadioButton(bool selected) {
-    return Container(
-      width: 28,
-      height: 28,
+  Widget _buildCheckCircle(bool selected) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: 26,
+      height: 26,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: selected ? const Color(0xFF6366F1) : Colors.white24,
+          color: selected ? const Color(0xFFFCBE11) : Colors.white24,
           width: 2,
         ),
-        color: selected ? const Color(0xFF6366F1) : Colors.transparent,
+        color: selected ? const Color(0xFFFCBE11) : Colors.transparent,
       ),
       child: selected
-          ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+          ? const Icon(Icons.check_rounded, color: Colors.white, size: 14)
           : null,
-    )
-        .animate(target: selected ? 1 : 0)
-        .scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1));
+    );
+  }
+
+  Widget _buildAddMemberButton() {
+    return GestureDetector(
+      onTap: () =>
+          Navigator.pushNamed(context, '/refugee/family_registration')
+              .then((_) => _loadData()),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.03),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.08),
+            style: BorderStyle.solid,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_circle_outline_rounded,
+                color: Colors.white38, size: 20),
+            const SizedBox(width: 10),
+            Text(
+              'Add Family Member',
+              style: GoogleFonts.dmSans(
+                  color: Colors.white38,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildBottomAction() {
+    final canContinue = _selectedIds.isNotEmpty;
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-      color: Colors.transparent,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 40,
-                  offset: const Offset(0, -10),
-                ),
-              ],
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+      decoration: BoxDecoration(
+        color: const Color(0xFF001530).withOpacity(0.95),
+        border: Border(
+          top: BorderSide(color: Colors.white.withOpacity(0.05)),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          width: double.infinity,
+          height: 58,
+          child: ElevatedButton(
+            onPressed: canContinue ? _continueToSymptoms : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFCBE11),
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.white.withOpacity(0.06),
+              disabledForegroundColor: Colors.white24,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18)),
             ),
-            padding: const EdgeInsets.all(20),
-            child: SizedBox(
-              width: double.infinity,
-              height: 60,
-              child: ElevatedButton(
-                onPressed: _selectedIds.isEmpty
-                    ? null
-                    : () {
-                        final selectedMember = _familyMembers.firstWhere(
-                            (element) => _selectedIds.contains(element['id']));
-                        _navigateToSymptomInput(selectedMember);
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.white.withOpacity(0.04),
-                  disabledForegroundColor: Colors.white12,
-                  elevation: 0,
-                  shadowColor: const Color(0xFF6366F1).withOpacity(0.5),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  canContinue
+                      ? 'CONTINUE (${_selectedIds.length} ${_selectedIds.length == 1 ? 'person' : 'people'})'
+                      : 'SELECT WHO IS VISITING',
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
                   ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _selectedIds.isEmpty
-                          ? 'SELECT MEMBERS'
-                          : 'CONTINUE (${_selectedIds.length})',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    if (_selectedIds.isNotEmpty) ...[
-                      const SizedBox(width: 12),
-                      const Icon(Icons.arrow_forward_rounded, size: 22),
-                    ],
-                  ],
-                ),
-              ),
+                if (canContinue) ...[
+                  const SizedBox(width: 10),
+                  const Icon(Icons.arrow_forward_rounded, size: 20),
+                ],
+              ],
             ),
           ),
         ),
@@ -532,10 +518,10 @@ class _JoinQueueDashboardState extends State<JoinQueueDashboard> {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: Colors.white.withOpacity(0.1)),
         ),
-        child: Icon(icon, color: Colors.white, size: 20),
+        child: Icon(icon, color: Colors.white, size: 18),
       ),
     );
   }

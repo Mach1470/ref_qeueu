@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:ref_qeueu/widgets/safe_scaffold.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ref_qeueu/services/auth_service.dart';
 import 'package:ref_qeueu/services/database_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ref_qeueu/widgets/glass_widgets.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_nav_bar/google_nav_bar.dart';
 
 class RefugeeHomeScreenNew extends StatefulWidget {
   const RefugeeHomeScreenNew({super.key});
@@ -20,19 +22,22 @@ class RefugeeHomeScreenNew extends StatefulWidget {
 class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
   bool _subScreenActive = false;
   String? _activeSubScreen;
+  int _selectedNavIndex = 0;
   String? _userName;
   String? _activeTicketId;
   String? _hospitalId;
   String? _profileImageUrl;
   bool _showProfileOverlay = false;
+  String? _userPhone;
+  String? _refugeeId;
+  int _medicalVisits = 0;
 
   @override
   void initState() {
     super.initState();
     _loadLocalProfile();
-    // Ensure local family members are available immediately when the
-    // refugee home screen is shown so Join Queue can list/select them.
     _loadFamilyMembers();
+    _loadMedicalVisits();
   }
 
   Future<void> _loadLocalProfile() async {
@@ -41,13 +46,51 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
       final name = prefs.getString('user_name');
       final tid = prefs.getString('active_ticket_id');
       final hid = prefs.getString('active_hospital_id') ?? 'fac_001';
+      final phone = prefs.getString('user_phone');
+      final uid = prefs.getString('user_id');
+
       if (mounted) {
         setState(() {
           _userName = name;
           _activeTicketId = tid;
           _hospitalId = hid;
           _profileImageUrl = prefs.getString('profile_image_url');
+          _userPhone = phone;
+          _refugeeId = uid; // individualNumber for signup users, Firebase UID for phone auth
         });
+      }
+
+      // Try to enrich from Firestore (name, phone, and optional refugeeId override)
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (doc.exists && mounted) {
+          final data = doc.data()!;
+          setState(() {
+            if (data['name'] != null) _userName = data['name'].toString();
+            if (data['phone'] != null) _userPhone = data['phone'].toString();
+            if (data['refugeeId'] != null) _refugeeId = data['refugeeId'].toString();
+            if (data['individualNumber'] != null && _refugeeId == null) {
+              _refugeeId = data['individualNumber'].toString();
+            }
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadMedicalVisits() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final ref = FirebaseDatabase.instance
+          .ref('userActivity/${user.uid}/sessions');
+      final snap = await ref.get();
+      if (snap.exists && mounted) {
+        setState(() => _medicalVisits = (snap.value as Map).length);
       }
     } catch (_) {}
   }
@@ -164,34 +207,35 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                                color:
-                                    const Color(0xFF10B981).withOpacity(0.3)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.verified_user_rounded,
-                                  color: Color(0xFF10B981), size: 14),
-                              const SizedBox(width: 6),
-                              Text(
-                                'UNHCR VERIFIED',
-                                style: GoogleFonts.dmSans(
-                                  color: const Color(0xFF10B981),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.2,
+                        if (_refugeeId != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                  color:
+                                      const Color(0xFF10B981).withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.verified_user_rounded,
+                                    color: Color(0xFF10B981), size: 14),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'UNHCR VERIFIED',
+                                  style: GoogleFonts.dmSans(
+                                    color: const Color(0xFF10B981),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.2,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
                         const SizedBox(height: 48),
 
                         // User Info Card
@@ -200,13 +244,13 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
                           child: Column(
                             children: [
                               _buildInfoRow(Icons.qr_code_rounded, 'Refugee ID',
-                                  'REF-987-420-X'),
+                                  _refugeeId ?? 'Not registered'),
                               const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 12),
                                 child: Divider(color: Colors.white10),
                               ),
                               _buildInfoRow(Icons.phone_rounded, 'Contact No',
-                                  '+254 712 345 678'),
+                                  _userPhone ?? 'Not set'),
                             ],
                           ),
                         ),
@@ -225,7 +269,7 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
                                   Icons.groups_rounded,
                                   Colors.blueAccent),
                               const SizedBox(width: 12),
-                              _buildProfileStat('Medical Visits', '12',
+                              _buildProfileStat('Medical Visits', '$_medicalVisits',
                                   Icons.history_rounded, Colors.purpleAccent),
                               const SizedBox(width: 12),
                               _buildProfileStat('Priority Status', 'Regular',
@@ -271,7 +315,7 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
                             _buildSettingsItem(
                                 Icons.info_rounded,
                                 'About Application',
-                                'Version 2.4.0-Premium',
+                                'Version 1.0.0',
                                 () {}),
                           ],
                         ),
@@ -452,9 +496,9 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF1E3A8A), // Deep Blue
-              Color(0xFF312E81), // Indigo
-              Color(0xFF4C1D95), // Deep Purple
+              Color(0xFF001F47), // UNHCR Navy
+              Color(0xFF003D7A), // UNHCR Deep Blue
+              Color(0xFF0060A9), // UNHCR Primary Blue
             ],
             stops: [0.0, 0.5, 1.0],
           ),
@@ -463,6 +507,43 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
           bottom: false,
           child: Stack(
             children: [
+              // Warm background glows
+              Positioned(
+                top: -60,
+                right: -40,
+                child: Container(
+                  width: 220,
+                  height: 220,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFF59E0B).withOpacity(0.15),
+                        blurRadius: 100,
+                        spreadRadius: 40,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 80,
+                left: -60,
+                child: Container(
+                  width: 260,
+                  height: 260,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF34D399).withOpacity(0.1),
+                        blurRadius: 120,
+                        spreadRadius: 50,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               Column(
                 children: [
                   // HEADER
@@ -484,13 +565,20 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
                                 decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       colors: [
-                                        Colors.white.withOpacity(0.25),
-                                        Colors.white.withOpacity(0.08),
+                                        const Color(0xFFF59E0B).withOpacity(0.5),
+                                        Colors.white.withOpacity(0.12),
                                       ],
                                     ),
                                     shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFFF59E0B).withOpacity(0.3),
+                                        blurRadius: 14,
+                                        spreadRadius: 2,
+                                      ),
+                                    ],
                                     border: Border.all(
-                                        color: Colors.white.withOpacity(0.3))),
+                                        color: const Color(0xFFF59E0B).withOpacity(0.4))),
                                 child: ClipOval(
                                   child: Image.asset(
                                     'assets/illustrations/app_logo.png',
@@ -540,10 +628,11 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                'Welcome back,',
+                                                _timeGreeting(),
                                                 style: GoogleFonts.dmSans(
-                                                  color: Colors.white70,
-                                                  fontSize: 16,
+                                                  color: const Color(0xFFFCBE11),
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w500,
                                                 ),
                                               ),
                                               Text(
@@ -640,9 +729,9 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
                                   subtitle: 'Register family',
                                   icon: Icons.badge_rounded,
                                   gradientColors: const [
-                                    Color(0xFF8B5CF6),
-                                    Color(0xFF6D28D9)
-                                  ], // Purple
+                                    Color(0xFF0072BC),
+                                    Color(0xFF003D7A)
+                                  ], // UNHCR Blue
                                   onTap: () => Navigator.pushNamed(
                                       context, '/refugee/family_registration')),
                               _DashboardCard(
@@ -666,43 +755,7 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
                                   onTap: () => _openSubScreen('history')),
                             ],
                           ),
-                          const SizedBox(height: 32),
-                          // Extra Actions
-                          GlassCard(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: TextButton.icon(
-                                    onPressed: () => Navigator.pushNamed(
-                                        context,
-                                        '/refugee/family_registration'),
-                                    icon: const Icon(Icons.add_circle_outline,
-                                        color: Colors.white),
-                                    label: const Text('Add Member',
-                                        style: TextStyle(color: Colors.white)),
-                                  ),
-                                ),
-                                Container(
-                                    width: 1,
-                                    height: 24,
-                                    color: Colors.white24),
-                                Expanded(
-                                  child: TextButton.icon(
-                                    onPressed: _loadFamilyMembers,
-                                    icon: const Icon(Icons.refresh_rounded,
-                                        color: Colors.white),
-                                    label: const Text('Sync Data',
-                                        style: TextStyle(color: Colors.white)),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-                          _buildFamilySection(),
-                          const SizedBox(height: 100),
+                          const SizedBox(height: 40),
                         ],
                       ),
                     ),
@@ -758,61 +811,55 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
         ),
       ),
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E3A8A).withOpacity(0.9),
+          color: const Color(0xFF001030),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withOpacity(0.4),
               blurRadius: 20,
-              offset: const Offset(0, -5),
-            )
+              offset: const Offset(0, -4),
+            ),
           ],
         ),
         child: SafeArea(
           top: false,
-          child: SizedBox(
-            height: 64,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(Icons.home_rounded, 'Home', true, () {}),
-                _buildNavItem(Icons.person_outline_rounded, 'Profile', false,
-                    () => Navigator.pushNamed(context, '/profile')),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: GNav(
+              rippleColor: const Color(0xFF0072BC).withOpacity(0.2),
+              hoverColor: const Color(0xFF0072BC).withOpacity(0.1),
+              gap: 8,
+              activeColor: const Color(0xFFFCBE11),
+              iconSize: 24,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              duration: const Duration(milliseconds: 400),
+              tabBackgroundColor: const Color(0xFF0072BC).withOpacity(0.25),
+              color: Colors.white38,
+              textStyle: GoogleFonts.dmSans(
+                color: const Color(0xFFFCBE11),
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+              tabs: const [
+                GButton(icon: Icons.home_rounded, text: 'Home'),
+                GButton(icon: Icons.queue_rounded, text: 'Queue'),
+                GButton(
+                    icon: Icons.person_outline_rounded, text: 'Profile'),
               ],
+              selectedIndex: _selectedNavIndex,
+              onTabChange: (index) {
+                setState(() => _selectedNavIndex = index);
+                if (index == 1) {
+                  Navigator.pushNamed(context, '/refugee/join_queue')
+                      .then((_) => setState(() => _selectedNavIndex = 0));
+                } else if (index == 2) {
+                  Navigator.pushNamed(context, '/profile')
+                      .then((_) => setState(() => _selectedNavIndex = 0));
+                }
+              },
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(
-      IconData icon, String label, bool isActive, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isActive ? Colors.white : Colors.white.withOpacity(0.4),
-              size: 26,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: GoogleFonts.dmSans(
-                color: isActive ? Colors.white : Colors.white.withOpacity(0.4),
-                fontSize: 11,
-                fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -821,20 +868,34 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
   Widget _buildQueueStatus() {
     if (_activeTicketId == null) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
+          color: const Color(0xFFF59E0B).withOpacity(0.12),
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.25)),
         ),
         child: Row(
           children: [
-            const Icon(Icons.info_outline_rounded,
-                color: Colors.white70, size: 20),
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withOpacity(0.18),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.queue_rounded,
+                  color: Color(0xFFF59E0B), size: 18),
+            ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                'No active queue ticket at the moment.',
-                style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 13),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('No active queue',
+                      style: GoogleFonts.dmSans(
+                          color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                  Text('Tap "Join Queue" to get a ticket',
+                      style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 11)),
+                ],
               ),
             ),
           ],
@@ -861,12 +922,12 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
           decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.white.withOpacity(0.2),
+                  const Color(0xFFF59E0B).withOpacity(0.22),
                   Colors.white.withOpacity(0.05),
                 ],
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.1))),
+              border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3))),
           child: Row(
             children: [
               const Icon(Icons.confirmation_num_rounded,
@@ -929,6 +990,13 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
         _activeSubScreen = id;
         _subScreenActive = true;
       });
+
+  String _timeGreeting() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good morning,';
+    if (h < 17) return 'Good afternoon,';
+    return 'Good evening,';
+  }
 
   Widget _buildSubScreenContent() {
     if (_activeSubScreen == 'id_card') {
@@ -1053,15 +1121,16 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
               ),
             ),
             TextButton.icon(
-              onPressed: () {
+              onPressed: () async {
                 // Add dependency logic
-                Navigator.pushNamed(context, '/refugee/family_registration');
+                await Navigator.pushNamed(context, '/refugee/family_registration');
+                _loadFamilyMembers();
               },
               icon: const Icon(Icons.add_circle_outline_rounded,
                   color: Colors.white70, size: 18),
               label: Text(
                 'Add Member',
-                style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 13),
+                style: GoogleFonts.merriweather(color: Colors.white70, fontSize: 13),
               ),
             ),
           ],
@@ -1104,13 +1173,13 @@ class _RefugeeHomeScreenNewState extends State<RefugeeHomeScreenNew> {
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: isPrimary
-              ? const Color(0xFF6366F1).withOpacity(0.1)
+              ? const Color(0xFFFCBE11).withOpacity(0.1)
               : Colors.white.withOpacity(0.05),
           shape: BoxShape.circle,
         ),
         child: Icon(
           isPrimary ? Icons.stars_rounded : Icons.person_outline_rounded,
-          color: isPrimary ? const Color(0xFF818CF8) : Colors.white70,
+          color: isPrimary ? const Color(0xFF82C4E8) : Colors.white70,
           size: 20,
         ),
       ),
